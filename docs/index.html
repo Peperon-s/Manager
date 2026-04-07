@@ -897,22 +897,34 @@
   // INIT
   // ══════════════════════════════════════
   (async function init() {
-    try {
-      var cfg = await gasApi('getClientConfig');
-      googleClientId = cfg.googleClientId || '';
-      if (googleClientId && !googleClientId.startsWith('YOUR_')) {
-        google.accounts.id.initialize({ client_id: googleClientId, callback: handleGoogleCallback });
-      }
-    } catch (e) { /* Google Sign-In unavailable */ }
+    var loggedIn = false;
 
+    // 既存トークンを先に検証
     if (authToken) {
       try {
         var res = await gasApi('verifyToken', { token: authToken });
-        if (res.email) { showApp(); return; }
+        if (res.email) { showApp(); loggedIn = true; }
       } catch (e) { /* fall through */ }
-      clearAuth();
+      if (!loggedIn) clearAuth();
     }
-    showAuthScreen();
+
+    // ログイン済みでない場合のみ Google を初期化（済みの場合はOne Tapポップアップが出てしまうため）
+    if (!loggedIn) {
+      try {
+        var cfg = await gasApi('getClientConfig');
+        googleClientId = cfg.googleClientId || '';
+        if (googleClientId && !googleClientId.startsWith('YOUR_')) {
+          google.accounts.id.initialize({ client_id: googleClientId, callback: handleGoogleCallback });
+        }
+      } catch (e) { /* Google Sign-In unavailable */ }
+      showAuthScreen();
+    } else {
+      // ログイン済みでもclientIdは設定だけしておく（設定画面等で使う可能性）
+      try {
+        var cfg2 = await gasApi('getClientConfig');
+        googleClientId = cfg2.googleClientId || '';
+      } catch (e) {}
+    }
   })();
 
   // ══════════════════════════════════════
