@@ -1,0 +1,5 @@
+# APIキー・認証情報を含むファイルはgitで管理しない
+google apps script for automatic/config.js
+
+# clasp認証情報
+.clasprc.json
