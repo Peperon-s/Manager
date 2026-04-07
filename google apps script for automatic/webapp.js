@@ -51,7 +51,7 @@ function doPost(e) {
         break;
 
       case 'processChatMessage':
-        result = processChatMessage(params.message, params.history || [], params.token || null);
+        result = processChatMessage(params.message, params.history || [], params.token || null, params.imageBase64 || null, params.imageMimeType || null);
         break;
 
       case 'getSettingsData':
@@ -395,10 +395,10 @@ function readSheetFromUrl(url, sheetName) {
 // ==========================================
 // WebApp チャット受信用エンドポイント
 // ==========================================
-function processChatMessage(userText, history, token) {
+function processChatMessage(userText, history, token, imageBase64, imageMimeType) {
   try {
     var userEmail = token ? verifyToken(token) : null;
-    return handleWebChatMessage_(userText, history, userEmail);
+    return handleWebChatMessage_(userText, history, userEmail, imageBase64, imageMimeType);
   } catch (e) {
     logToSheet("【Chat Error】" + e.toString());
     return { error: e.message };

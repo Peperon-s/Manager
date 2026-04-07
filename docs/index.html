@@ -210,6 +210,29 @@
     }
     .chat-send:disabled { background: var(--border); cursor: not-allowed; }
     .chat-send:active { transform: scale(.93); }
+    .chat-img-btn {
+      width: 36px; height: 36px; flex-shrink: 0; align-self: flex-end;
+      background: none; border: 1px solid var(--border); border-radius: 8px;
+      color: var(--sub); font-size: 16px; cursor: pointer; transition: .2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .chat-img-btn:hover { border-color: var(--blue); color: var(--blue); }
+    #img-preview-area {
+      display: none; padding: 8px 12px 0;
+      flex-shrink: 0;
+    }
+    #img-preview-area.has-image { display: flex; align-items: flex-start; gap: 8px; }
+    #img-preview-thumb {
+      max-height: 80px; max-width: 120px; border-radius: 8px;
+      border: 1px solid var(--border); object-fit: cover;
+    }
+    .img-remove-btn {
+      background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--sub); border-radius: 50%; width: 22px; height: 22px;
+      font-size: 12px; cursor: pointer; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .msg-img { max-width: 200px; border-radius: 8px; margin-bottom: 4px; display: block; }
 
     /* ─── Bottom Nav (mobile only) ─── */
     .bottom-nav {
@@ -773,7 +796,15 @@
           <div class="msg-bubble">こんにちは！何を記録・確認しますか？</div>
         </div>
       </div>
+      <div id="img-preview-area">
+        <img id="img-preview-thumb" src="" alt="preview">
+        <button class="img-remove-btn" onclick="clearImageAttachment()" title="削除">✕</button>
+      </div>
       <div class="chat-input-area">
+        <input type="file" id="img-file-input" accept="image/*" style="display:none"
+               onchange="onImageSelected(this)">
+        <button class="chat-img-btn" onclick="document.getElementById('img-file-input').click()"
+                title="画像を添付">📷</button>
         <textarea id="chat-input" class="chat-input" rows="1"
                   placeholder="メッセージを入力..."></textarea>
         <button class="chat-send" id="chat-send-btn" onclick="sendChatMessage()">
@@ -1325,25 +1356,67 @@
   // ══════════════════════════════════════
   // CHAT
   // ══════════════════════════════════════
-  function appendMessage(role, text) {
+  function appendMessage(role, text, rawHtml) {
     var hist   = document.getElementById('chat-history');
     var row    = document.createElement('div');
     var bubble = document.createElement('div');
     row.className    = 'msg-row ' + (role === 'user' ? 'msg-user' : 'msg-ai');
     bubble.className = 'msg-bubble';
-    bubble.innerHTML = esc(text).replace(/\n/g,'<br>');
+    bubble.innerHTML = rawHtml ? text : esc(text).replace(/\n/g,'<br>');
     row.appendChild(bubble); hist.appendChild(row);
     hist.scrollTop = hist.scrollHeight;
+  }
+
+  // 画像添付
+  var _attachedImage = null; // { base64, mimeType, dataUrl }
+
+  function onImageSelected(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var dataUrl  = e.target.result;
+      var base64   = dataUrl.split(',')[1];
+      var mimeType = file.type || 'image/jpeg';
+      _attachedImage = { base64: base64, mimeType: mimeType, dataUrl: dataUrl };
+      document.getElementById('img-preview-thumb').src = dataUrl;
+      document.getElementById('img-preview-area').classList.add('has-image');
+    };
+    reader.readAsDataURL(file);
+    input.value = '';
+  }
+
+  function clearImageAttachment() {
+    _attachedImage = null;
+    document.getElementById('img-preview-area').classList.remove('has-image');
+    document.getElementById('img-preview-thumb').src = '';
   }
 
   function sendChatMessage() {
     var inputEl = document.getElementById('chat-input');
     var btn     = document.getElementById('chat-send-btn');
     var text    = inputEl.value.trim();
-    if (!text) return;
-    appendMessage('user', text);
+    if (!text && !_attachedImage) return;
+
+    // チャットに表示
+    if (_attachedImage) {
+      var imgHtml = '<img class="msg-img" src="' + _attachedImage.dataUrl + '">' +
+                    (text ? '<div>' + esc(text) + '</div>' : '');
+      appendMessage('user', imgHtml, true);
+    } else {
+      appendMessage('user', text);
+    }
+
+    var payload = { message: text || '（画像を送信しました）', history: chatHistoryContext, token: authToken };
+    if (_attachedImage) {
+      payload.imageBase64   = _attachedImage.base64;
+      payload.imageMimeType = _attachedImage.mimeType;
+    }
+
     inputEl.value = ''; inputEl.style.height = 'auto'; inputEl.disabled = true; btn.disabled = true;
-    gasApi('processChatMessage', { message: text, history: chatHistoryContext, token: authToken })
+    clearImageAttachment();
+
+    gasApi('processChatMessage', payload)
       .then(function(res) {
         inputEl.disabled = false; btn.disabled = false; inputEl.focus();
         if (res.error) { appendMessage('ai', '⚠ エラー: ' + res.error); return; }

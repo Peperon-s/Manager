@@ -2,7 +2,7 @@
 // CFS Web App: メイン処理 (MCP / Slackから完全移行)
 // ==========================================
 
-function handleWebChatMessage_(userMessage, history, userEmail) {
+function handleWebChatMessage_(userMessage, history, userEmail, imageBase64, imageMimeType) {
   // 1. 会話履歴をGemini用フォーマットに変換
   const contents = [];
   if (history && Array.isArray(history)) {
@@ -14,9 +14,14 @@ function handleWebChatMessage_(userMessage, history, userEmail) {
       }
     });
   }
-  
-  // 今の送信内容を追加
-  contents.push({ role: "user", parts: [{ text: userMessage }] });
+
+  // 今の送信内容を追加（画像があればinlineDataを含める）
+  const userParts = [];
+  if (imageBase64 && imageMimeType) {
+    userParts.push({ inlineData: { mimeType: imageMimeType, data: imageBase64 } });
+  }
+  userParts.push({ text: userMessage });
+  contents.push({ role: "user", parts: userParts });
 
   // 2. コンテキスト情報の構築
   const nowStr = Utilities.formatDate(new Date(), "JST", "yyyy-MM-dd(E) HH:mm:ss");
@@ -49,7 +54,8 @@ function handleWebChatMessage_(userMessage, history, userEmail) {
     "■ 学習進捗管理\n" + sheetCtx + "\n\n" +
     "【指示】\n" +
     "ユーザーのメッセージの文脈から最も適切なツールを呼び出してください。ツール呼び出しが不要な場合はテキストで回答してください。タスク追加やタイマー開始は対象を明確にしてください。日付を指定するツールは必ず ISO 8601形式 または YYYY-MM-DD形式 をツールの仕様に合わせて使用してください。\n" +
-    "ユーザーが「〜を覚えておいて」「〜を記録して」「メモリに保存して」のように言った場合はsaveMemoryを呼び出してください。「〜を忘れて」「メモリから削除して」の場合はdeleteMemoryを、「メモリを見せて」「覚えていることを教えて」の場合はlistMemoriesを呼び出してください。";
+    "ユーザーが「〜を覚えておいて」「〜を記録して」「メモリに保存して」のように言った場合はsaveMemoryを呼び出してください。「〜を忘れて」「メモリから削除して」の場合はdeleteMemoryを、「メモリを見せて」「覚えていることを教えて」の場合はlistMemoriesを呼び出してください。\n" +
+    "画像が添付されている場合は、まず画像の内容を読み取ってください。手書きのスケジュール・予定・タスクが含まれている場合は内容を整理して提示し、カレンダー登録やタスク追加が必要かユーザーに確認した上でツールを呼び出してください。";
 
   // 3. ツール一覧の定義 (全21ツールを統合)
   const fnDeclarations = getUniversalToolDeclarations_();
