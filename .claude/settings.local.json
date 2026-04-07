@@ -8,7 +8,13 @@
       "Bash(clasp push:*)",
       "Bash(where clasp:*)",
       "Bash(where node:*)",
-      "Bash(where npm:*)"
+      "Bash(where npm:*)",
+      "Bash(ls -la \"C:\\\\Users\\\\iwama\\\\Documents\\\\【私用】プライベート\\\\win98_icons\\\\windows98-icons\\\\png\\\\briefcase-\"*.png)",
+      "Bash(cmd /c \"dir /b \"\"C:\\\\Users\\\\iwama\\\\Documents\\\\【私用】プライベート\\\\win98_icons\\\\windows98-icons\\\\png\\\\briefcase*.png\"\"\")",
+      "Bash(cmd /c \"dir /b \"\"C:\\\\Users\\\\iwama\\\\Documents\\\\【私用】プライベート\\\\win98_icons\\\\windows98-icons\\\\png\"\"\")",
+      "Bash(powershell -Command \"Get-ChildItem ''C:\\\\Users\\\\iwama\\\\Documents\\\\【私用】プライベート\\\\win98_icons\\\\windows98-icons\\\\png\\\\briefcase*.png'' | Select-Object Name, Length\")",
+      "Bash(powershell -Command \":*)",
+      "Bash(powershell -NoProfile -Command \"Copy-Item ''C:\\\\Users\\\\iwama\\\\Documents\\\\【私用】プライベート\\\\win98_icons\\\\windows98-icons\\\\png\\\\briefcase-4.png'' ''C:\\\\Users\\\\iwama\\\\Documents\\\\【重要】開発\\\\google apps script for automatic\\\\docs\\\\favicon.png''; Write-Output ''done''\")"
     ]
   }
 }

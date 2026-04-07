@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Manager</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -45,9 +47,7 @@
     .auth-logo { text-align: center; margin-bottom: 24px; }
     .auth-logo-icon {
       width: 48px; height: 48px; margin: 0 auto 10px;
-      background: linear-gradient(135deg, var(--blue), var(--purple));
-      border-radius: 12px; display: flex; align-items: center;
-      justify-content: center; font-size: 24px;
+      image-rendering: pixelated;
     }
     .auth-logo h1 { font-size: 22px; font-weight: 700; }
     .auth-logo p  { font-size: 12px; color: var(--sub); margin-top: 2px; }
@@ -520,7 +520,7 @@
 <div id="auth-screen">
   <div class="auth-box">
     <div class="auth-logo">
-      <div class="auth-logo-icon">⚡</div>
+      <img class="auth-logo-icon" src="favicon.png" alt="Manager">
       <h1>Manager</h1>
       <p>Life Management System</p>
     </div>
