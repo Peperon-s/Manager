@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manager</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary:    #0d1117;
+      --bg-card:       #161b22;
+      --bg-hover:      #21262d;
+      --border:        #30363d;
+      --text-primary:  #e6edf3;
+      --text-secondary:#8b949e;
+      --blue:          #58a6ff;
+      --green:         #3fb950;
+      --amber:         #d29922;
+      --red:           #f85149;
+      --orange:        #db6d28;
+      --purple:        #a371f7;
+      --font-mono:     'SF Mono','Fira Code','Consolas',monospace;
+    }
+
+    body {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Auth Screen ─────────────────────────── */
+    #auth-screen {
+      position: fixed; inset: 0;
+      background: var(--bg-primary);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+    }
+    .auth-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 380px;
+      padding: 32px;
+    }
+    .auth-logo {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .auth-logo-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 12px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 24px; margin-bottom: 10px;
+    }
+    .auth-logo h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+    .auth-logo p  { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+    .auth-tabs {
+      display: flex;
+      background: var(--bg-primary);
+      border-radius: 8px;
+      padding: 4px;
+      margin-bottom: 24px;
+    }
+    .auth-tab {
+      flex: 1; padding: 8px;
+      text-align: center; font-size: 13px; font-weight: 600;
+      border-radius: 6px; cursor: pointer;
+      color: var(--text-secondary); transition: 0.2s;
+      border: none; background: none;
+    }
+    .auth-tab.active { background: var(--bg-card); color: var(--text-primary); }
+
+    .auth-form { display: none; }
+    .auth-form.active { display: block; }
+
+    .auth-input {
+      width: 100%; padding: 10px 14px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      border-radius: 8px;
+      font-size: 14px; margin-bottom: 10px;
+      transition: 0.2s; outline: none;
+    }
+    .auth-input:focus { border-color: var(--blue); }
+    .auth-input::placeholder { color: var(--text-secondary); }
+
+    .auth-btn {
+      width: 100%; padding: 11px;
+      background: var(--blue); color: #fff;
+      border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: 0.2s; margin-top: 4px;
+    }
+    .auth-btn:hover { background: #4493eb; }
+    .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .auth-divider {
+      display: flex; align-items: center; gap: 10px;
+      color: var(--text-secondary); font-size: 12px;
+      margin: 14px 0;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: ""; flex: 1; height: 1px; background: var(--border);
+    }
+
+    .google-btn {
+      width: 100%; padding: 10px;
+      background: #fff; color: #3c4043;
+      border: 1px solid #dadce0; border-radius: 8px;
+      font-size: 14px; font-weight: 500;
+      cursor: pointer; transition: 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .google-btn:hover { background: #f8f9fa; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+    .google-btn svg { flex-shrink: 0; }
+
+    .auth-error {
+      color: var(--red); font-size: 12px;
+      padding: 8px 12px;
+      background: rgba(248,81,73,.1);
+      border: 1px solid rgba(248,81,73,.3);
+      border-radius: 6px;
+      margin-bottom: 10px; display: none;
+    }
+
+    /* ── Header ─────────────────────────────── */
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, #161b22 0%, #0d1117 100%);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .header-brand { display: flex; align-items: center; gap: 10px; }
+    .header-logo {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .header-title    { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+    .header-subtitle { font-size: 10px; color: var(--text-secondary); letter-spacing: 1px; text-transform: uppercase; }
+
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .header-clock { text-align: right; }
+    .header-date  { font-size: 11px; color: var(--text-secondary); }
+    .header-time  { font-size: 22px; font-weight: 300; font-family: var(--font-mono); letter-spacing: 2px; }
+
+    .hamburger {
+      width: 36px; height: 36px;
+      background: none; border: 1px solid var(--border);
+      border-radius: 8px; cursor: pointer;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 4px;
+      transition: 0.2s; flex-shrink: 0;
+    }
+    .hamburger:hover { background: var(--bg-hover); border-color: var(--blue); }
+    .hamburger span {
+      display: block; width: 16px; height: 2px;
+      background: var(--text-secondary); border-radius: 1px;
+      transition: 0.2s;
+    }
+    .hamburger:hover span { background: var(--text-primary); }
+
+    /* ── Settings Panel ──────────────────────── */
+    #settings-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.5);
+      z-index: 50; display: none;
+    }
+    #settings-overlay.open { display: block; }
+    #settings-panel {
+      position: absolute; right: 0; top: 0; bottom: 0;
+      width: 360px; max-width: 90vw;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+    }
+    #settings-overlay.open #settings-panel { transform: translateX(0); }
+
+    .settings-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0;
+      background: var(--bg-card); z-index: 1;
+    }
+    .settings-header h2 { font-size: 15px; font-weight: 700; }
+    .settings-close {
+      width: 28px; height: 28px;
+      background: none; border: none;
+      color: var(--text-secondary); font-size: 18px;
+      cursor: pointer; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      transition: 0.2s;
+    }
+    .settings-close:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    .settings-section {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .settings-section-title {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--text-secondary); margin-bottom: 14px;
+    }
+    .settings-field { margin-bottom: 12px; }
+    .settings-label {
+      display: block; font-size: 12px;
+      color: var(--text-secondary); margin-bottom: 4px;
+    }
+    .settings-input {
+      width: 100%; padding: 8px 12px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      border-radius: 6px; font-size: 13px;
+      font-family: var(--font-mono);
+      outline: none; transition: 0.2s;
+    }
+    .settings-input:focus { border-color: var(--blue); }
+    .settings-btn {
+      padding: 8px 16px;
+      background: var(--blue); color: #fff;
+      border: none; border-radius: 6px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: 0.2s;
+    }
+    .settings-btn:hover { background: #4493eb; }
+    .settings-btn.secondary {
+      background: none; color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .settings-btn.secondary:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .settings-btn.danger { background: rgba(248,81,73,.15); color: var(--red); border: 1px solid rgba(248,81,73,.3); }
+    .settings-btn.danger:hover { background: rgba(248,81,73,.25); }
+    .settings-msg { font-size: 12px; margin-top: 8px; display: none; }
+    .settings-msg.ok  { color: var(--green); }
+    .settings-msg.err { color: var(--red); }
+
+    .account-info {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px; background: var(--bg-hover);
+      border-radius: 8px; margin-bottom: 14px;
+    }
+    .account-avatar {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; flex-shrink: 0;
+    }
+    .account-name  { font-size: 14px; font-weight: 600; }
+    .account-email { font-size: 11px; color: var(--text-secondary); }
+
+    /* ── Full-height App Layout ─────────────── */
+    #main-app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      overflow: hidden;
+    }
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+    .dashboard-pane {
+      flex: 1;
+      overflow-y: auto;
+      min-width: 0;
+    }
+    .chat-pane {
+      width: 360px;
+      flex-shrink: 0;
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-card);
+    }
+    .chat-pane .chat-container {
+      flex: 1;
+      height: 100%;
+      border-radius: 0;
+      border: none;
+      border-top: none;
+    }
+    .chat-pane .chat-history { flex: 1; }
+
+    /* ── Grid ───────────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px; padding: 20px 24px;
+    }
+
+    /* ── Mobile Drawer ───────────────────────── */
+    #drawer-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.6);
+      z-index: 60;
+    }
+    #drawer-overlay.open { display: block; }
+
+    #mobile-drawer {
+      position: absolute; left: 0; top: 0; bottom: 0;
+      width: 260px;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      transform: translateX(-100%);
+      transition: transform 0.28s ease;
+    }
+    #drawer-overlay.open #mobile-drawer { transform: translateX(0); }
+
+    .drawer-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .drawer-brand { display: flex; align-items: center; gap: 10px; }
+    .drawer-brand-icon {
+      width: 30px; height: 30px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px;
+    }
+    .drawer-brand-name { font-size: 15px; font-weight: 700; }
+    .drawer-close {
+      width: 28px; height: 28px;
+      background: none; border: none;
+      color: var(--text-secondary); font-size: 18px;
+      cursor: pointer; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .drawer-nav { flex: 1; padding: 12px 8px; }
+    .drawer-nav-item {
+      display: flex; align-items: center; gap: 12px;
+      width: 100%; padding: 13px 14px;
+      border: none; background: none;
+      color: var(--text-secondary);
+      font-size: 14px; font-weight: 500;
+      border-radius: 8px; cursor: pointer;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      text-align: left;
+    }
+    .drawer-nav-item:active { background: var(--bg-hover); }
+    .drawer-nav-item.active {
+      background: rgba(88,166,255,.12);
+      color: var(--blue);
+    }
+    .drawer-nav-icon { font-size: 18px; width: 24px; text-align: center; }
+
+    /* ── レスポンシブ: iPad (481〜1024px) ────── */
+    @media (min-width: 481px) and (max-width: 1024px) {
+      .chat-pane   { width: 300px; }
+      .grid        { gap: 14px; padding: 16px; }
+      .card-body   { padding: 16px; }
+      .card-header { padding: 14px 16px; }
+      #settings-panel { width: 400px; }
+      .chat-input  { font-size: 16px; }
+    }
+
+    /* ── レスポンシブ: スマホ (〜480px) ─────── */
+    @media (max-width: 480px) {
+      /* アプリ全体をビューポートに収める */
+      #main-app {
+        height: 100dvh; overflow: hidden;
+        padding-bottom: 0;
+        display: flex; flex-direction: column;
+      }
+      .app-body {
+        flex: 1; flex-direction: column;
+        overflow: hidden; min-height: 0;
+      }
+
+      /* ダッシュボードペイン */
+      .dashboard-pane {
+        flex: 1; overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .dashboard-pane.hidden { display: none; }
+
+      /* チャットペイン：デフォルト表示 */
+      .chat-pane {
+        width: 100%; border-left: none;
+        display: none; flex: none;
+      }
+      .chat-pane.active {
+        display: flex; flex: 1; min-height: 0;
+      }
+      .chat-pane .chat-container {
+        border-radius: 0; height: 100%; min-height: 0;
+      }
+
+      /* ヘッダー */
+      .header { padding: 10px 14px; flex-shrink: 0; }
+      .header-title    { font-size: 16px; }
+      .header-subtitle { display: none; }
+      .header-time     { font-size: 18px; letter-spacing: 1px; }
+      .header-logo     { width: 28px; height: 28px; font-size: 14px; }
+      .hamburger       { display: flex; } /* スマホでも表示 */
+
+      /* グリッド・カード */
+      .grid        { grid-template-columns: 1fr; gap: 12px; padding: 12px; }
+      .card-header { padding: 12px 14px; }
+      .card-body   { padding: 14px; }
+      .card-title  { font-size: 11px; }
+      .card-badge  { font-size: 11px; padding: 2px 8px; }
+
+      /* タッチターゲット */
+      .refresh-btn { padding: 8px 14px; font-size: 12px; }
+      .task-item   { padding: 10px 0; }
+      .event-item  { padding: 10px 0; }
+
+      /* iOS zoom防止 */
+      .chat-input { font-size: 16px; }
+      .auth-input { font-size: 16px; }
+
+      /* 設定パネル */
+      #settings-panel { width: 100%; }
+    }
+
+    /* ── Card ───────────────────────────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+      animation: fadeIn 0.4s ease both;
+    }
+    .card:nth-child(1) { animation-delay: 0.05s; }
+    .card:nth-child(2) { animation-delay: 0.10s; }
+    .card:nth-child(3) { animation-delay: 0.15s; }
+    .card:nth-child(4) { animation-delay: 0.20s; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .card-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-hover);
+    }
+    .card-icon  { font-size: 16px; }
+    .card-title {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    .card-badge {
+      margin-left: auto;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 20px; padding: 2px 10px;
+      font-size: 11px; color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+    .card-body { padding: 18px; }
+
+    /* ── Loading / Error ────────────────────── */
+    .loading {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--text-secondary); font-size: 13px; padding: 8px 0;
+    }
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-msg { color: var(--red); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+
+    /* ── Toggl ──────────────────────────────── */
+    .running-badge {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(63,185,80,.1);
+      border: 1px solid rgba(63,185,80,.3);
+      border-radius: 8px; padding: 10px 14px; margin-bottom: 16px;
+    }
+    .running-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); flex-shrink: 0;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.5; transform:scale(.8); }
+    }
+    .running-desc  { font-size: 13px; font-weight: 500; }
+    .running-timer { margin-left: auto; font-family: var(--font-mono); font-size: 16px; font-weight: 600; color: var(--green); }
+    .running-ws    { font-size: 11px; color: var(--text-secondary); }
+    .ws-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 0; border-bottom: 1px solid rgba(48,54,61,.5);
+    }
+    .ws-row:last-child { border-bottom: none; }
+    .ws-name { color: var(--text-secondary); font-size: 13px; }
+    .ws-time { font-family: var(--font-mono); font-size: 14px; font-weight: 600; }
+    .total-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+    }
+    .total-label { color: var(--text-secondary); font-size: 12px; }
+    .total-time  { font-family: var(--font-mono); font-size: 22px; font-weight: 700; color: var(--blue); }
+
+    /* ── Calendar ───────────────────────────── */
+    .section-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--text-secondary);
+      margin-bottom: 8px; margin-top: 4px;
+    }
+    .event-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 8px 0; border-bottom: 1px solid rgba(48,54,61,.5);
+    }
+    .event-item:last-child { border-bottom: none; }
+    .event-dot { width:6px; height:6px; border-radius:50%; background:var(--blue); margin-top:6px; flex-shrink:0; }
+    .event-time { font-family:var(--font-mono); font-size:12px; color:var(--text-secondary); min-width:40px; }
+    .event-date { font-size:11px; color:var(--blue); min-width:70px; }
+    .event-title { font-size:13px; }
+    .event-cal   { font-size:10px; color:var(--text-secondary); margin-top:2px; }
+    .no-event    { color:var(--text-secondary); font-size:13px; padding:4px 0; }
+
+    /* ── Tasks ──────────────────────────────── */
+    .task-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 7px 0; border-bottom: 1px solid rgba(48,54,61,.5);
+    }
+    .task-item:last-child { border-bottom: none; }
+    .priority-dot { width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0; }
+    .p1 { background:var(--red); }
+    .p2 { background:var(--orange); }
+    .p3 { background:var(--blue); }
+    .p4 { background:var(--text-secondary); }
+    .task-content { font-size:13px; flex:1; }
+    .task-due     { font-size:11px; color:var(--amber); margin-top:2px; }
+    .task-due.overdue { color:var(--red); }
+    .tasks-empty  { color:var(--text-secondary); font-size:13px; padding:4px 0; }
+
+    /* ── Progress ───────────────────────────── */
+    .progress-item { margin-bottom: 18px; }
+    .progress-item:last-child { margin-bottom: 0; }
+    .progress-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+    .progress-subject { font-size:13px; font-weight:600; }
+    .progress-pct     { font-family:var(--font-mono); font-size:13px; color:var(--blue); }
+    .progress-track   { height:6px; background:var(--bg-hover); border-radius:3px; overflow:hidden; }
+    .progress-fill    {
+      height:100%; border-radius:3px;
+      background:linear-gradient(90deg,var(--blue),var(--green));
+      width:0; transition:width 1.2s cubic-bezier(.4,0,.2,1);
+    }
+    .progress-sub   { display:flex; justify-content:space-between; margin-top:4px; }
+    .progress-count { font-size:11px; color:var(--text-secondary); }
+    .progress-wip   { font-size:11px; color:var(--amber); }
+    .progress-empty { color:var(--text-secondary); font-size:13px; }
+
+    /* ── Refresh btn ────────────────────────── */
+    .refresh-btn {
+      margin-left: auto; background:none;
+      border:1px solid var(--border); color:var(--text-secondary);
+      padding:4px 12px; border-radius:6px; font-size:11px; cursor:pointer; transition:.2s;
+    }
+    .refresh-btn:hover { background:var(--bg-hover); color:var(--text-primary); border-color:var(--blue); }
+
+    /* ── Chat ───────────────────────────────── */
+    .chat-section { max-width:1200px; margin:0 auto 20px; padding:0 24px; }
+    @media (max-width:768px) { .chat-section { padding:0 12px; } }
+    .chat-container {
+      background:var(--bg-card); border:1px solid var(--border);
+      border-radius:12px; display:flex; flex-direction:column;
+      height:450px; min-height:0;
+    }
+    .chat-history {
+      flex:1; padding:16px; overflow-y:auto;
+      display:flex; flex-direction:column; gap:12px;
+    }
+    .msg-row { display:flex; align-items:flex-end; }
+    .msg-user { flex-direction:row-reverse; }
+    .msg-bubble { max-width:85%; padding:10px 14px; border-radius:16px; font-size:14px; line-height:1.5; }
+    .msg-user .msg-bubble { background:var(--blue); color:#fff; border-bottom-right-radius:4px; }
+    .msg-ai   .msg-bubble { background:var(--bg-hover); color:var(--text-primary); border:1px solid var(--border); border-bottom-left-radius:4px; }
+    .chat-input-area {
+      display:flex; gap:8px; padding:12px;
+      border-top:1px solid var(--border);
+      background:var(--bg-card); border-radius:0 0 12px 12px;
+    }
+    .chat-input {
+      flex:1; background:var(--bg-primary); border:1px solid var(--border);
+      color:#fff; border-radius:20px; padding:10px 16px; font-size:14px; outline:none; transition:.2s;
+    }
+    .chat-input:focus   { border-color:var(--blue); }
+    .chat-input:disabled { opacity:.5; }
+    .chat-send {
+      background:var(--blue); color:#fff; border:none;
+      width:40px; height:40px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; flex-shrink:0; transition:.2s;
+    }
+    .chat-send:active   { transform:scale(.95); }
+    .chat-send:disabled { background:var(--border); cursor:not-allowed; }
+  </style>
+</head>
+<body>
+
+<!-- ══ Auth Screen ══════════════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">⚡</div>
+      <h1>Manager</h1>
+      <p>Life Management System</p>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">ログイン</button>
+      <button class="auth-tab"        onclick="switchAuthTab('register')">アカウント作成</button>
+    </div>
+
+    <!-- Login form -->
+    <div id="form-login" class="auth-form active">
+      <div id="login-error" class="auth-error"></div>
+      <button class="google-btn" onclick="googleSignIn('login')">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Googleでログイン
+      </button>
+      <div class="auth-divider">または</div>
+      <input id="login-email"    class="auth-input" type="email"    placeholder="メールアドレス">
+      <input id="login-password" class="auth-input" type="password" placeholder="パスワード">
+      <button class="auth-btn" onclick="loginWithEmail()" id="login-btn">ログイン</button>
+    </div>
+
+    <!-- Register form -->
+    <div id="form-register" class="auth-form">
+      <div id="register-error" class="auth-error"></div>
+      <button class="google-btn" onclick="googleSignIn('register')">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Googleで登録
+      </button>
+      <div class="auth-divider">または</div>
+      <input id="reg-name"     class="auth-input" type="text"     placeholder="お名前">
+      <input id="reg-email"    class="auth-input" type="email"    placeholder="メールアドレス">
+      <input id="reg-password" class="auth-input" type="password" placeholder="パスワード（8文字以上）">
+      <input id="reg-confirm"  class="auth-input" type="password" placeholder="パスワード確認">
+      <button class="auth-btn" onclick="registerWithEmail()" id="register-btn">アカウント作成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Settings Overlay ══════════════════════════ -->
+<div id="settings-overlay" onclick="closeSettingsOnOverlay(event)">
+  <div id="settings-panel">
+    <div class="settings-header">
+      <h2>⚙ 設定</h2>
+      <button class="settings-close" onclick="closeSettings()">✕</button>
+    </div>
+
+    <!-- Account -->
+    <div class="settings-section">
+      <div class="settings-section-title">アカウント</div>
+      <div class="account-info">
+        <div class="account-avatar" id="s-avatar">?</div>
+        <div>
+          <div class="account-name"  id="s-name">-</div>
+          <div class="account-email" id="s-email">-</div>
+        </div>
+      </div>
+      <div class="settings-section-title" style="margin-top:14px">パスワード変更</div>
+      <div class="settings-field">
+        <label class="settings-label">現在のパスワード</label>
+        <input id="pw-old" class="settings-input" type="password" placeholder="（Googleログインのみの場合は空欄）">
+      </div>
+      <div class="settings-field">
+        <label class="settings-label">新しいパスワード</label>
+        <input id="pw-new" class="settings-input" type="password">
+      </div>
+      <div class="settings-field">
+        <label class="settings-label">新しいパスワード（確認）</label>
+        <input id="pw-confirm" class="settings-input" type="password">
+      </div>
+      <button class="settings-btn" onclick="submitChangePassword()">パスワードを変更</button>
+      <div id="pw-msg" class="settings-msg"></div>
+    </div>
+
+    <!-- API Keys -->
+    <div class="settings-section">
+      <div class="settings-section-title">API設定</div>
+      <div class="settings-field">
+        <label class="settings-label">Google Client ID（Google Sign-In用）</label>
+        <input id="s-google-client-id" class="settings-input" type="text" placeholder="xxxxx.apps.googleusercontent.com">
+      </div>
+      <div class="settings-field">
+        <label class="settings-label">Toggl API Key</label>
+        <input id="s-toggl"   class="settings-input" type="password" placeholder="現在の値は非表示">
+      </div>
+      <div class="settings-field">
+        <label class="settings-label">Todoist API Token</label>
+        <input id="s-todoist" class="settings-input" type="password" placeholder="現在の値は非表示">
+      </div>
+      <div class="settings-field">
+        <label class="settings-label">Gemini API Key</label>
+        <input id="s-gemini"  class="settings-input" type="password" placeholder="現在の値は非表示">
+      </div>
+      <div class="settings-field">
+        <label class="settings-label">Linear API Key</label>
+        <input id="s-linear"  class="settings-input" type="password" placeholder="現在の値は非表示">
+      </div>
+      <div class="settings-field">
+        <label class="settings-label">Linear Team ID</label>
+        <input id="s-linear-team" class="settings-input" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+      </div>
+      <div class="settings-field">
+        <label class="settings-label">Spreadsheet ID</label>
+        <input id="s-sheet"   class="settings-input" type="text">
+      </div>
+      <button class="settings-btn" onclick="saveApiSettings()">保存</button>
+      <div id="api-msg" class="settings-msg"></div>
+    </div>
+
+    <!-- Logout -->
+    <div class="settings-section">
+      <button class="settings-btn danger" onclick="doLogout()" style="width:100%">ログアウト</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Main App ══════════════════════════════════ -->
+<div id="main-app" style="display:none">
+
+  <header class="header">
+    <div class="header-brand">
+      <div class="header-logo">⚡</div>
+      <div>
+        <div class="header-title">Manager</div>
+        <div class="header-subtitle">Life Management</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="header-clock">
+        <div class="header-date" id="header-date"></div>
+        <div class="header-time" id="header-time">--:--:--</div>
+      </div>
+      <button class="hamburger" onclick="onHamburgerClick()" title="メニュー">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- app-body: Dashboard(左) + Chat(右) -->
+  <div class="app-body">
+
+    <!-- Dashboard Pane -->
+    <div class="dashboard-pane" id="section-dashboard">
+      <div class="grid">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">⏱</span>
+            <span class="card-title">Time Tracker</span>
+            <button class="refresh-btn" onclick="loadDashboard()">↻ 更新</button>
+          </div>
+          <div class="card-body" id="toggl-body"><div class="loading"><div class="spinner"></div>読み込み中...</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">📅</span>
+            <span class="card-title">Calendar</span>
+          </div>
+          <div class="card-body" id="calendar-body"><div class="loading"><div class="spinner"></div>読み込み中...</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">✅</span>
+            <span class="card-title">Tasks</span>
+            <span class="card-badge" id="tasks-badge">-</span>
+          </div>
+          <div class="card-body" id="tasks-body"><div class="loading"><div class="spinner"></div>読み込み中...</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">📖</span>
+            <span class="card-title">Study Progress</span>
+          </div>
+          <div class="card-body" id="progress-body"><div class="loading"><div class="spinner"></div>読み込み中...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Pane (右固定 / スマホはタブ切り替え) -->
+    <div class="chat-pane" id="section-chat">
+      <div class="chat-container">
+        <div id="chat-history" class="chat-history">
+          <div class="msg-row msg-ai"><div class="msg-bubble">こんにちは！何を記録・確認しますか？</div></div>
+        </div>
+        <div class="chat-input-area">
+          <input type="text" id="chat-input" class="chat-input"
+                 placeholder="メッセージを入力..."
+                 onkeypress="if(event.key==='Enter') sendChatMessage()">
+          <button class="chat-send" id="chat-send-btn" onclick="sendChatMessage()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /app-body -->
+
+
+</div><!-- /main-app -->
+
+<!-- ══ Mobile Drawer ══════════════════════════════ -->
+<div id="drawer-overlay" onclick="closeDrawerOnOverlay(event)">
+  <div id="mobile-drawer">
+    <div class="drawer-header">
+      <div class="drawer-brand">
+        <div class="drawer-brand-icon">⚡</div>
+        <span class="drawer-brand-name">Manager</span>
+      </div>
+      <button class="drawer-close" onclick="closeMobileDrawer()">✕</button>
+    </div>
+    <nav class="drawer-nav">
+      <button class="drawer-nav-item" id="drawer-chat" onclick="switchMobileTab('chat')">
+        <span class="drawer-nav-icon">💬</span>チャット
+      </button>
+      <button class="drawer-nav-item" id="drawer-dashboard" onclick="switchMobileTab('dashboard')">
+        <span class="drawer-nav-icon">📊</span>ダッシュボード
+      </button>
+      <button class="drawer-nav-item" onclick="closeMobileDrawer(); openSettings()">
+        <span class="drawer-nav-icon">⚙</span>設定
+      </button>
+    </nav>
+  </div>
+</div>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<script>
+  // ── State ─────────────────────────────────────
+  var authToken   = localStorage.getItem('manager_token');
+  var currentUser = JSON.parse(localStorage.getItem('manager_user') || 'null');
+  var googleClientId = '';
+  var pendingGoogleMode = null; // 'login' or 'register'
+  var pendingGoogleCredential = null;
+  var chatHistoryContext = [];
+  var timerInterval = null, timerSeconds = 0;
+
+  // ── Init ──────────────────────────────────────
+  google.script.run
+    .withSuccessHandler(function(cfg) {
+      googleClientId = cfg.googleClientId;
+      if (googleClientId && !googleClientId.startsWith('YOUR_')) {
+        google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback:  handleGoogleCallback
+        });
+      }
+      if (authToken) {
+        // ストレージにトークンがある → サーバーで有効性確認
+        google.script.run
+          .withSuccessHandler(function(email) {
+            if (email) {
+              showApp();
+            } else {
+              clearAuth();
+              showAuthScreen();
+            }
+          })
+          .verifyToken(authToken);
+      } else {
+        showAuthScreen();
+      }
+    })
+    .getClientConfig();
+
+  // ── Auth UI ───────────────────────────────────
+  function showAuthScreen() {
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('main-app').style.display    = 'none';
+  }
+
+  function showApp() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('main-app').style.display    = 'flex';
+    // 設定パネルのユーザー情報を更新
+    if (currentUser) {
+      document.getElementById('s-name').textContent  = currentUser.name  || '-';
+      document.getElementById('s-email').textContent = currentUser.email || '-';
+      document.getElementById('s-avatar').textContent = (currentUser.name || '?')[0].toUpperCase();
+    }
+    // スマホはデフォルトをチャット画面に
+    if (window.innerWidth <= 480) {
+      switchMobileTab('chat');
+    }
+    loadDashboard();
+  }
+
+  function clearAuth() {
+    authToken   = null;
+    currentUser = null;
+    localStorage.removeItem('manager_token');
+    localStorage.removeItem('manager_user');
+  }
+
+  function afterLogin(data) {
+    if (data.error) return data.error;
+    authToken   = data.token;
+    currentUser = { email: data.email, name: data.name };
+    localStorage.setItem('manager_token', authToken);
+    localStorage.setItem('manager_user',  JSON.stringify(currentUser));
+    showApp();
+    return null;
+  }
+
+  function switchAuthTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach(function(el, i) {
+      el.classList.toggle('active', (tab === 'login' ? i === 0 : i === 1));
+    });
+    document.getElementById('form-login').classList.toggle('active',    tab === 'login');
+    document.getElementById('form-register').classList.toggle('active', tab === 'register');
+  }
+
+  function showAuthError(formId, msg) {
+    var el = document.getElementById(formId + '-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  // ── Google Sign-In ────────────────────────────
+  function googleSignIn(mode) {
+    pendingGoogleMode = mode;
+    if (!googleClientId || googleClientId.startsWith('YOUR_')) {
+      alert('Google Sign-Inを使用するには、config.jsにGOOGLE_CLIENT_IDを設定してください。');
+      return;
+    }
+    google.accounts.id.prompt();
+  }
+
+  function handleGoogleCallback(response) {
+    var credential = response.credential;
+    if (pendingGoogleMode === 'register') {
+      // 登録フロー
+      google.script.run
+        .withSuccessHandler(function(data) {
+          if (data.needsRegistration) {
+            // まだ未登録 → 名前だけ確認して登録
+            var name = prompt('お名前を入力してください', data.name || '');
+            if (name === null) return;
+            google.script.run
+              .withSuccessHandler(function(d) {
+                var err = afterLogin(d);
+                if (err) showAuthError('register', err);
+              })
+              .registerWithGoogle(credential, name);
+          } else if (data.error) {
+            showAuthError('register', data.error);
+          } else {
+            var err = afterLogin(data);
+            if (err) showAuthError('register', err);
+          }
+        })
+        .verifyGoogleCredential(credential);
+    } else {
+      // ログインフロー
+      google.script.run
+        .withSuccessHandler(function(data) {
+          if (data.needsRegistration) {
+            showAuthError('login', 'このGoogleアカウントは未登録です。「アカウント作成」から登録してください。');
+          } else if (data.error) {
+            showAuthError('login', data.error);
+          } else {
+            var err = afterLogin(data);
+            if (err) showAuthError('login', err);
+          }
+        })
+        .verifyGoogleCredential(credential);
+    }
+  }
+
+  // ── Email/Password Auth ───────────────────────
+  function loginWithEmail() {
+    var email    = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+    var btn      = document.getElementById('login-btn');
+    document.getElementById('login-error').style.display = 'none';
+    if (!email || !password) { showAuthError('login', 'メールアドレスとパスワードを入力してください'); return; }
+
+    btn.disabled = true; btn.textContent = '確認中...';
+    google.script.run
+      .withSuccessHandler(function(data) {
+        btn.disabled = false; btn.textContent = 'ログイン';
+        var err = afterLogin(data);
+        if (err) showAuthError('login', err);
+      })
+      .withFailureHandler(function(e) {
+        btn.disabled = false; btn.textContent = 'ログイン';
+        showAuthError('login', 'エラー: ' + e.message);
+      })
+      .loginWithPassword(email, password);
+  }
+
+  function registerWithEmail() {
+    var name     = document.getElementById('reg-name').value.trim();
+    var email    = document.getElementById('reg-email').value.trim();
+    var password = document.getElementById('reg-password').value;
+    var confirm  = document.getElementById('reg-confirm').value;
+    var btn      = document.getElementById('register-btn');
+    document.getElementById('register-error').style.display = 'none';
+
+    if (!email || !password) { showAuthError('register', 'メールアドレスとパスワードを入力してください'); return; }
+    if (password.length < 8) { showAuthError('register', 'パスワードは8文字以上にしてください'); return; }
+    if (password !== confirm) { showAuthError('register', 'パスワードが一致しません'); return; }
+
+    btn.disabled = true; btn.textContent = '登録中...';
+    google.script.run
+      .withSuccessHandler(function(data) {
+        btn.disabled = false; btn.textContent = 'アカウント作成';
+        var err = afterLogin(data);
+        if (err) showAuthError('register', err);
+      })
+      .withFailureHandler(function(e) {
+        btn.disabled = false; btn.textContent = 'アカウント作成';
+        showAuthError('register', 'エラー: ' + e.message);
+      })
+      .registerWithPassword(email, password, name);
+  }
+
+  // ── Settings Panel ────────────────────────────
+  function openSettings() {
+    var overlay = document.getElementById('settings-overlay');
+    overlay.classList.add('open');
+    // APIキーは値を表示しない（セキュリティ）
+    // ユーザー情報だけ反映
+    if (currentUser) {
+      document.getElementById('s-name').textContent  = currentUser.name  || '-';
+      document.getElementById('s-email').textContent = currentUser.email || '-';
+      document.getElementById('s-avatar').textContent = (currentUser.name || '?')[0].toUpperCase();
+    }
+  }
+
+  function closeSettings() {
+    document.getElementById('settings-overlay').classList.remove('open');
+  }
+
+  function closeSettingsOnOverlay(e) {
+    if (e.target === document.getElementById('settings-overlay')) closeSettings();
+  }
+
+  function submitChangePassword() {
+    var oldPw  = document.getElementById('pw-old').value;
+    var newPw  = document.getElementById('pw-new').value;
+    var confPw = document.getElementById('pw-confirm').value;
+    var msg    = document.getElementById('pw-msg');
+    msg.style.display = 'none';
+
+    if (!newPw) { showSettingsMsg('pw-msg', 'err', '新しいパスワードを入力してください'); return; }
+    if (newPw.length < 8) { showSettingsMsg('pw-msg', 'err', '8文字以上にしてください'); return; }
+    if (newPw !== confPw) { showSettingsMsg('pw-msg', 'err', 'パスワードが一致しません'); return; }
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.error) showSettingsMsg('pw-msg', 'err', res.error);
+        else { showSettingsMsg('pw-msg', 'ok', 'パスワードを変更しました'); document.getElementById('pw-old').value = document.getElementById('pw-new').value = document.getElementById('pw-confirm').value = ''; }
+      })
+      .changePassword(authToken, oldPw, newPw);
+  }
+
+  function saveApiSettings() {
+    var settings = {
+      googleClientId: document.getElementById('s-google-client-id').value,
+      togglApiKey:    document.getElementById('s-toggl').value,
+      todoistToken:   document.getElementById('s-todoist').value,
+      geminiApiKey:   document.getElementById('s-gemini').value,
+      linearApiKey:   document.getElementById('s-linear').value,
+      linearTeamId:   document.getElementById('s-linear-team').value,
+      spreadsheetId:  document.getElementById('s-sheet').value
+    };
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.error) showSettingsMsg('api-msg', 'err', res.error);
+        else showSettingsMsg('api-msg', 'ok', '保存しました');
+      })
+      .updateSettingsData(authToken, settings);
+  }
+
+  function showSettingsMsg(id, type, text) {
+    var el = document.getElementById(id);
+    el.className = 'settings-msg ' + type;
+    el.textContent = text;
+    el.style.display = 'block';
+  }
+
+  function doLogout() {
+    if (!confirm('ログアウトしますか？')) return;
+    google.script.run.logoutUser(authToken);
+    clearAuth();
+    closeSettings();
+    showAuthScreen();
+  }
+
+  // ── Clock ─────────────────────────────────────
+  function updateClock() {
+    var now  = new Date();
+    var pad  = function(n) { return String(n).padStart(2,'0'); };
+    var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    document.getElementById('header-time').textContent =
+      pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+    document.getElementById('header-date').textContent =
+      now.getFullYear() + '/' + pad(now.getMonth()+1) + '/' + pad(now.getDate()) +
+      '  ' + days[now.getDay()];
+  }
+  setInterval(updateClock, 1000); updateClock();
+
+  // ── Dashboard ─────────────────────────────────
+  function loadDashboard() {
+    ['toggl-body','calendar-body','tasks-body','progress-body'].forEach(function(id) {
+      document.getElementById(id).innerHTML =
+        '<div class="loading"><div class="spinner"></div>読み込み中...</div>';
+    });
+    google.script.run
+      .withSuccessHandler(function(jsonStr) {
+        var data = JSON.parse(jsonStr);
+        renderToggl(data.toggl    || {});
+        renderCalendar(data.calendar || {});
+        renderTasks(data.tasks    || {});
+        renderProgress(data.progress || []);
+      })
+      .withFailureHandler(function(err) {
+        ['toggl-body','calendar-body','tasks-body','progress-body'].forEach(function(id) {
+          document.getElementById(id).innerHTML = '<div class="error-msg">⚠ ' + err.message + '</div>';
+        });
+      })
+      .getDashboardData();
+  }
+
+  // ── Render: Toggl ─────────────────────────────
+  function renderToggl(data) {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    var el = document.getElementById('toggl-body');
+    if (data.error) { el.innerHTML = '<div class="error-msg">⚠ ' + data.error + '</div>'; return; }
+    var html = '';
+    if (data.running) {
+      timerSeconds = data.running.elapsedSeconds;
+      html += '<div class="running-badge"><div class="running-dot"></div><div>' +
+              '<div class="running-desc">' + esc(data.running.description) + '</div>' +
+              '<div class="running-ws">'   + esc(data.running.workspace)   + '</div>' +
+              '</div><div class="running-timer" id="running-timer">' + fmtSec(timerSeconds) + '</div></div>';
+      timerInterval = setInterval(function() {
+        timerSeconds++;
+        var el2 = document.getElementById('running-timer');
+        if (el2) el2.textContent = fmtSec(timerSeconds);
+      }, 1000);
+    }
+    if (data.byWorkspace && data.byWorkspace.length) {
+      data.byWorkspace.forEach(function(ws) {
+        html += '<div class="ws-row"><span class="ws-name">' + esc(ws.workspace) +
+                '</span><span class="ws-time">' + esc(ws.formatted) + '</span></div>';
+      });
+    } else {
+      html += '<div class="no-event">今日の記録はまだありません</div>';
+    }
+    html += '<div class="total-row"><span class="total-label">TODAY TOTAL</span>' +
+            '<span class="total-time">' + esc(data.totalFormatted) + '</span></div>';
+    el.innerHTML = html;
+  }
+
+  // ── Render: Calendar ──────────────────────────
+  function renderCalendar(data) {
+    var el = document.getElementById('calendar-body');
+    if (data.error && !data.today.length && !data.upcoming.length) {
+      el.innerHTML = '<div class="error-msg">⚠ ' + data.error + '</div>'; return;
+    }
+    var html = '';
+    if (data.today.length) {
+      html += '<div class="section-label">TODAY</div>';
+      data.today.forEach(function(ev) {
+        html += '<div class="event-item"><div class="event-dot"></div>' +
+                '<div class="event-time">' + esc(ev.start) + '</div>' +
+                '<div><div class="event-title">' + esc(ev.title) + '</div>' +
+                '<div class="event-cal">'   + esc(ev.calendar) + '</div></div></div>';
+      });
+    }
+    if (data.upcoming.length) {
+      html += '<div class="section-label" style="margin-top:14px">UPCOMING</div>';
+      data.upcoming.forEach(function(ev) {
+        html += '<div class="event-item">' +
+                '<div class="event-dot" style="background:var(--purple)"></div>' +
+                '<div class="event-date">' + esc(ev.date) + '</div>' +
+                '<div class="event-time">' + esc(ev.start) + '</div>' +
+                '<div><div class="event-title">' + esc(ev.title) + '</div>' +
+                '<div class="event-cal">'   + esc(ev.calendar) + '</div></div></div>';
+      });
+    }
+    if (!data.today.length && !data.upcoming.length) html = '<div class="no-event">直近の予定はありません</div>';
+    el.innerHTML = html;
+  }
+
+  // ── Render: Tasks ─────────────────────────────
+  function renderTasks(data) {
+    var el = document.getElementById('tasks-body');
+    document.getElementById('tasks-badge').textContent = (data.total || 0) + '件';
+    if (data.error && data.total === 0) { el.innerHTML = '<div class="error-msg">⚠ ' + data.error + '</div>'; return; }
+    var all = [].concat(
+      data.byPriority.p1.map(function(t) { return {t:t,p:'p1'}; }),
+      data.byPriority.p2.map(function(t) { return {t:t,p:'p2'}; }),
+      data.byPriority.p3.map(function(t) { return {t:t,p:'p3'}; }),
+      data.byPriority.p4.map(function(t) { return {t:t,p:'p4'}; })
+    );
+    if (!all.length) { el.innerHTML = '<div class="tasks-empty">✨ タスクはありません</div>'; return; }
+    var html = '';
+    var today = new Date().toISOString().split('T')[0];
+    all.slice(0,8).forEach(function(item) {
+      var overdue = item.t.due && item.t.due < today;
+      html += '<div class="task-item"><div class="priority-dot ' + item.p + '"></div>' +
+              '<div class="task-content">' + esc(item.t.content) +
+              (item.t.due ? '<div class="task-due' + (overdue ? ' overdue' : '') + '">期限: ' + esc(item.t.due) + '</div>' : '') +
+              '</div></div>';
+    });
+    if (all.length > 8) html += '<div style="color:var(--text-secondary);font-size:11px;padding-top:6px">他 ' + (all.length-8) + ' 件...</div>';
+    el.innerHTML = html;
+  }
+
+  // ── Render: Progress ──────────────────────────
+  function renderProgress(data) {
+    var el = document.getElementById('progress-body');
+    if (!data || !data.length) { el.innerHTML = '<div class="progress-empty">進捗表はまだ作成されていません</div>'; return; }
+    var html = '';
+    data.forEach(function(p) {
+      if (p.error) { html += '<div class="error-msg" style="margin-bottom:12px">⚠ ' + esc(p.subject) + ' の読み込みに失敗</div>'; return; }
+      html += '<div class="progress-item"><div class="progress-header">' +
+              '<span class="progress-subject">' + esc(p.subject) + '</span>' +
+              '<span class="progress-pct">' + p.pct + '%</span></div>' +
+              '<div class="progress-track"><div class="progress-fill" data-pct="' + p.pct + '"></div></div>' +
+              '<div class="progress-sub"><span class="progress-count">✅ ' + p.done + ' / ' + p.total + '問</span>' +
+              (p.wip > 0 ? '<span class="progress-wip">🔄 ' + p.wip + '問進行中</span>' : '') +
+              '</div></div>';
+    });
+    el.innerHTML = html;
+    setTimeout(function() {
+      document.querySelectorAll('.progress-fill').forEach(function(bar) {
+        bar.style.width = bar.dataset.pct + '%';
+      });
+    }, 100);
+  }
+
+  // ── Chat ──────────────────────────────────────
+  function appendMessage(role, text) {
+    var div = document.getElementById('chat-history');
+    var row = document.createElement('div');
+    row.className = 'msg-row ' + (role === 'user' ? 'msg-user' : 'msg-ai');
+    var bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.innerHTML = esc(text).replace(/\n/g, '<br>');
+    row.appendChild(bubble); div.appendChild(row);
+    div.scrollTop = div.scrollHeight;
+  }
+
+  function sendChatMessage() {
+    var inputEl = document.getElementById('chat-input');
+    var btn     = document.getElementById('chat-send-btn');
+    var text    = inputEl.value.trim();
+    if (!text) return;
+    appendMessage('user', text);
+    inputEl.value = ''; inputEl.disabled = true; btn.disabled = true;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        inputEl.disabled = false; btn.disabled = false; inputEl.focus();
+        if (res.error) { appendMessage('ai', '⚠ エラー: ' + res.error); return; }
+        appendMessage('ai', res.message || '完了しました。');
+        if (res.newHistory) chatHistoryContext = res.newHistory;
+        if (res.shouldRefresh) loadDashboard();
+      })
+      .withFailureHandler(function(e) {
+        inputEl.disabled = false; btn.disabled = false;
+        appendMessage('ai', '⚠ 通信エラー: ' + e.message);
+      })
+      .processChatMessage(text, chatHistoryContext);
+  }
+
+  // ── Hamburger ─────────────────────────────────
+  function onHamburgerClick() {
+    if (window.innerWidth <= 480) openMobileDrawer();
+    else openSettings();
+  }
+
+  // ── Mobile Drawer ─────────────────────────────
+  function openMobileDrawer() {
+    document.getElementById('drawer-overlay').classList.add('open');
+  }
+  function closeMobileDrawer() {
+    document.getElementById('drawer-overlay').classList.remove('open');
+  }
+  function closeDrawerOnOverlay(e) {
+    if (e.target === document.getElementById('drawer-overlay')) closeMobileDrawer();
+  }
+
+  // ── Mobile Tab ────────────────────────────────
+  function switchMobileTab(tab) {
+    if (window.innerWidth > 480) return;
+    closeMobileDrawer();
+
+    var dash        = document.getElementById('section-dashboard');
+    var chat        = document.getElementById('section-chat');
+    var drawerDash  = document.getElementById('drawer-dashboard');
+    var drawerChat  = document.getElementById('drawer-chat');
+
+    if (tab === 'dashboard') {
+      dash.classList.remove('hidden');
+      chat.classList.remove('active');
+      drawerDash.classList.add('active');
+      drawerChat.classList.remove('active');
+    } else {
+      dash.classList.add('hidden');
+      chat.classList.add('active');
+      drawerChat.classList.add('active');
+      drawerDash.classList.remove('active');
+      setTimeout(function() { document.getElementById('chat-input').focus(); }, 150);
+    }
+  }
+
+  // ── Helpers ───────────────────────────────────
+  function fmtSec(s) {
+    var h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+    var pad = function(n) { return String(n).padStart(2,'0'); };
+    return (h > 0 ? h + ':' : '') + pad(m) + ':' + pad(sec);
+  }
+  function esc(str) {
+    return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>
