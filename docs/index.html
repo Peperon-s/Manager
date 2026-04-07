@@ -703,7 +703,7 @@
   // ══════════════════════════════════════
   // CONFIG — GASのWebAppURLに変更してください
   // ══════════════════════════════════════
-  const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwO1XRv6UbrqqnBNVzt8s6fNFx3IA-YoKDRdjfyLiLm-RQjyGwZU3rXNqV8SmfS8wLX/exec';
+  const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwEsL2zfUEXz5hht-niWGDGTP5UdwHaouFauDWnUUyrZSL1_yGn08oEspf6BOBDKJ30/exec';
 
   // ══════════════════════════════════════
   // GAS API ヘルパー
@@ -716,7 +716,13 @@
       redirect: 'follow'
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    return res.json();
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      // GASが非JSONを返した場合、最初の200文字をエラーとして表示
+      throw new Error('GAS response not JSON: ' + text.slice(0, 200));
+    }
   }
 
   // ══════════════════════════════════════
