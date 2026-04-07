@@ -2,7 +2,7 @@
 // CFS Web App: メイン処理 (MCP / Slackから完全移行)
 // ==========================================
 
-function handleWebChatMessage_(userMessage, history) {
+function handleWebChatMessage_(userMessage, history, userEmail) {
   // 1. 会話履歴をGemini用フォーマットに変換
   const contents = [];
   if (history && Array.isArray(history)) {
@@ -33,9 +33,13 @@ function handleWebChatMessage_(userMessage, history) {
     ? "作成済み進捗表: " + Object.keys(sheetMap).join(", ")
     : "進捗表はまだ作成されていません。";
 
+  // メモリ取得
+  const memoryText = userEmail ? memoryBuildPromptText_(userEmail) : '';
+
   // システムプロンプト
-  const systemPrompt = 
+  const systemPrompt =
     "あなたはユーザーの活動をサポートするライフマネジメントAIです。現在は " + nowStr + " です。\n\n" +
+    (memoryText ? memoryText + "\n\n" : "") +
     "【各種コンテキスト情報】\n" +
     "■ Toggl Track (時間記録)\n" + togglContextText + "\n" +
     "・Studyワークスペースのクライアント用途目安: " + JSON.stringify(STUDY_CLIENT_HINTS) + "\n\n" +
@@ -44,7 +48,8 @@ function handleWebChatMessage_(userMessage, history) {
     "■ Todoist (タスク)\n" + tasksContext + "\n\n" +
     "■ 学習進捗管理\n" + sheetCtx + "\n\n" +
     "【指示】\n" +
-    "ユーザーのメッセージの文脈から最も適切なツールを呼び出してください。ツール呼び出しが不要な場合はテキストで回答してください。タスク追加やタイマー開始は対象を明確にしてください。日付を指定するツールは必ず ISO 8601形式 または YYYY-MM-DD形式 をツールの仕様に合わせて使用してください。";
+    "ユーザーのメッセージの文脈から最も適切なツールを呼び出してください。ツール呼び出しが不要な場合はテキストで回答してください。タスク追加やタイマー開始は対象を明確にしてください。日付を指定するツールは必ず ISO 8601形式 または YYYY-MM-DD形式 をツールの仕様に合わせて使用してください。\n" +
+    "ユーザーが「〜を覚えておいて」「〜を記録して」「メモリに保存して」のように言った場合はsaveMemoryを呼び出してください。「〜を忘れて」「メモリから削除して」の場合はdeleteMemoryを、「メモリを見せて」「覚えていることを教えて」の場合はlistMemoriesを呼び出してください。";
 
   // 3. ツール一覧の定義 (全21ツールを統合)
   const fnDeclarations = getUniversalToolDeclarations_();
@@ -66,6 +71,7 @@ function handleWebChatMessage_(userMessage, history) {
 
   if (part.functionCall) {
     const call = part.functionCall;
+    call._userEmail = userEmail || null; // メモリツール用にユーザー情報を付与
     logToSheet("関数呼び出し: " + call.name + " " + JSON.stringify(call.args));
     shouldRefresh = true; // ツール呼び出し時はダッシュボード更新フラグを立てる
 
@@ -148,6 +154,12 @@ function executeFunctionCall_(call) {
   if (name === "linearCompleteIssue")  { return linearCompleteIssue(args.issueTitle, args.projectKey); }
   if (name === "linearUpdateIssue")    { return linearUpdateIssue(args.issueTitle, args.projectKey, args.newTitle||null, args.newPriority||null, args.newStateName||null); }
   if (name === "linearGetCycleSummary"){ return linearGetCycleSummary(args.projectKey); }
+
+  // -- Memory
+  if (name === "saveMemory")       { return saveMemory(call._userEmail||null, args.key, args.value); }
+  if (name === "deleteMemory")     { return deleteMemory(call._userEmail||null, args.key); }
+  if (name === "listMemories")     { return listMemories(call._userEmail||null); }
+  if (name === "readSheetFromUrl") { return readSheetFromUrl(args.url, args.sheetName||null); }
 
   return "不明なツール呼び出しです: " + name;
 }
@@ -378,6 +390,52 @@ function getUniversalToolDeclarations_() {
           projectKey: { type: "STRING", enum: ["retake", "weekly"] }
         },
         required: ["projectKey"]
+      }
+    },
+
+    // ── Memory ──────────────────────────────────
+    {
+      name: "readSheetFromUrl",
+      description: "GoogleスプレッドシートのURLまたはIDからシートの内容を読み取る。ユーザーのメモリにスプレッドシートのURLが登録されている場合や、シートの内容を参照したい場合に使用する。",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          url:       { type: "STRING", description: "GoogleスプレッドシートのURL（https://docs.google.com/spreadsheets/d/...）またはID" },
+          sheetName: { type: "STRING", description: "読み取るシート名（省略時はアクティブシート）" }
+        },
+        required: ["url"]
+      }
+    },
+
+    {
+      name: "saveMemory",
+      description: "ユーザーの個人データをメモリに保存する。講義時間・習慣・好み・住所・定型情報など、将来の会話で参照したい情報を登録する。ユーザーが「覚えておいて」「記録して」「メモリに保存して」と言ったときに呼び出す。",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          key:   { type: "STRING", description: "メモリのキー名（例: 講義時間、自宅住所、好きな食べ物）" },
+          value: { type: "STRING", description: "保存する内容（複数行可）" }
+        },
+        required: ["key", "value"]
+      }
+    },
+    {
+      name: "deleteMemory",
+      description: "ユーザーのメモリから特定のデータを削除する。「〜を忘れて」「メモリから削除して」と言ったときに呼び出す。",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          key: { type: "STRING", description: "削除するメモリのキー名" }
+        },
+        required: ["key"]
+      }
+    },
+    {
+      name: "listMemories",
+      description: "登録されているメモリの一覧を表示する。「メモリを見せて」「覚えていることを教えて」と言ったときに呼び出す。",
+      parameters: {
+        type: "OBJECT",
+        properties: {}
       }
     }
   ];

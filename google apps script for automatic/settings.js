@@ -4,13 +4,16 @@
 // ==========================================
 
 var SETTINGS_KEYS = {
-  togglApiKey:    "TOGGL_API_KEY",
-  todoistToken:   "TODOIST_API_TOKEN",
-  geminiApiKey:   "GEMINI_API_KEY",
-  linearApiKey:   "LINEAR_API_KEY",
-  linearTeamId:   "LINEAR_TEAM_ID",
-  spreadsheetId:  "SPREADSHEET_ID",
-  googleClientId: "GOOGLE_CLIENT_ID"
+  // API認証
+  togglApiKey:          "TOGGL_API_KEY",
+  todoistToken:         "TODOIST_API_TOKEN",
+  geminiApiKey:         "GEMINI_API_KEY",
+  linearApiKey:         "LINEAR_API_KEY",
+  linearTeamId:         "LINEAR_TEAM_ID",
+  googleClientId:       "GOOGLE_CLIENT_ID",
+  // スプレッドシート
+  spreadsheetId:        "SPREADSHEET_ID",
+  notebooklmFolderId:   "NOTEBOOKLM_DOCS_FOLDER_ID"
 };
 
 // 設定値を取得（UIに返す）

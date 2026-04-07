@@ -51,7 +51,7 @@ function doPost(e) {
         break;
 
       case 'processChatMessage':
-        result = processChatMessage(params.message, params.history || []);
+        result = processChatMessage(params.message, params.history || [], params.token || null);
         break;
 
       case 'getSettingsData':
@@ -69,6 +69,18 @@ function doPost(e) {
       case 'logoutUser':
         logoutUser(params.token);
         result = { success: true };
+        break;
+
+      case 'getMemoryData':
+        result = getMemoryData(params.token);
+        break;
+
+      case 'saveMemoryData':
+        result = saveMemoryData(params.token, params.key, params.value);
+        break;
+
+      case 'deleteMemoryData':
+        result = deleteMemoryData(params.token, params.key);
         break;
 
       default:
@@ -345,12 +357,48 @@ function buildDashboardMessage_() {
 }
 
 // ==========================================
+// ==========================================
+// スプレッドシートURL読み取り（AIツール用）
+// ==========================================
+function readSheetFromUrl(url, sheetName) {
+  try {
+    // URLからIDを抽出（URLそのままでもIDでも対応）
+    var idMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    var id = idMatch ? idMatch[1] : url;
+
+    var ss    = SpreadsheetApp.openById(id);
+    var sheet = sheetName ? ss.getSheetByName(sheetName) : ss.getActiveSheet();
+
+    if (!sheet) {
+      var names = ss.getSheets().map(function(s) { return s.getName(); }).join(', ');
+      return 'シート「' + sheetName + '」が見つかりません。利用可能なシート: ' + names;
+    }
+
+    var data  = sheet.getDataRange().getValues();
+    var lines = data
+      .map(function(row) {
+        return row.map(function(cell) { return String(cell); }).join('\t');
+      })
+      .filter(function(line) { return line.replace(/\t/g, '').trim() !== ''; });
+
+    if (!lines.length) return 'シート「' + sheet.getName() + '」は空です。';
+
+    var preview = lines.slice(0, 60).join('\n');
+    var note    = lines.length > 60 ? '\n...（' + (lines.length - 60) + '行省略）' : '';
+    return 'スプレッドシート「' + ss.getName() + '」シート「' + sheet.getName() + '」の内容:\n' + preview + note;
+
+  } catch (e) {
+    return 'スプレッドシートの読み込みに失敗しました: ' + e.message;
+  }
+}
+
+// ==========================================
 // WebApp チャット受信用エンドポイント
 // ==========================================
-function processChatMessage(userText, history) {
+function processChatMessage(userText, history, token) {
   try {
-    // 認証不要、すでにPIN突破済みのクライアントからのみ呼ばれる前提
-    return handleWebChatMessage_(userText, history);
+    var userEmail = token ? verifyToken(token) : null;
+    return handleWebChatMessage_(userText, history, userEmail);
   } catch (e) {
     logToSheet("【Chat Error】" + e.toString());
     return { error: e.message };

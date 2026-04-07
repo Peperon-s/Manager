@@ -230,32 +230,65 @@
     .bnav-icon { font-size: 20px; line-height: 1; }
 
     /* ═══════════════════════════════════
-       SETTINGS OVERLAY
+       NAV DRAWER（ハンバーガーメニュー）
     ═══════════════════════════════════ */
-    #settings-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,.55);
-      z-index: 150; display: none;
+    #nav-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: 60; display: none;
     }
-    #settings-overlay.open { display: block; }
-    #settings-panel {
+    #nav-overlay.open { display: block; }
+    #nav-drawer {
       position: absolute; right: 0; top: 0; bottom: 0;
-      width: 360px; max-width: 100vw;
-      background: var(--bg-card); border-left: 1px solid var(--border);
-      overflow-y: auto; transform: translateX(100%);
-      transition: transform .3s ease;
+      width: 220px; background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      transform: translateX(100%); transition: transform .3s ease;
     }
-    #settings-overlay.open #settings-panel { transform: translateX(0); }
-    .s-head {
+    #nav-overlay.open #nav-drawer { transform: translateX(0); }
+    .nav-drawer-head {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 20px; border-bottom: 1px solid var(--border);
-      position: sticky; top: 0; background: var(--bg-card); z-index: 1;
+      padding: 16px 18px; border-bottom: 1px solid var(--border);
     }
-    .s-head h2 { font-size: 15px; font-weight: 700; }
-    .s-close {
+    .nav-drawer-title { font-size: 15px; font-weight: 700; }
+    .nav-close {
       width: 28px; height: 28px; background: none; border: none;
-      color: var(--sub); font-size: 20px; cursor: pointer;
+      color: var(--sub); font-size: 18px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
     }
+    .nav-list { padding: 8px 0; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      width: 100%; padding: 13px 18px;
+      border: none; background: none;
+      color: var(--text); font-size: 14px;
+      cursor: pointer; text-align: left;
+      transition: background .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .nav-item:hover, .nav-item:active { background: var(--bg-hover); }
+    .nav-item-icon { font-size: 18px; width: 22px; text-align: center; }
+
+    /* ═══════════════════════════════════
+       SETTINGS PAGE（フルスクリーン）
+    ═══════════════════════════════════ */
+    #settings-page {
+      position: fixed; inset: 0; background: var(--bg);
+      z-index: 70; display: none; flex-direction: column; overflow: hidden;
+    }
+    #settings-page.open { display: flex; }
+    .spg-header {
+      flex-shrink: 0; display: flex; align-items: center; gap: 14px;
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+    .spg-back {
+      display: flex; align-items: center; gap: 5px;
+      background: none; border: none; color: var(--blue);
+      font-size: 14px; cursor: pointer; padding: 4px 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .spg-title { font-size: 15px; font-weight: 700; }
+    .spg-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .s-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
     .s-section-title {
       font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
@@ -508,14 +541,34 @@
 </div>
 
 <!-- ══════════════════════════════════════
-     SETTINGS OVERLAY
+     NAV DRAWER（ハンバーガーメニュー）
 ══════════════════════════════════════ -->
-<div id="settings-overlay" onclick="closeSettingsOnOverlay(event)">
-  <div id="settings-panel">
-    <div class="s-head">
-      <h2>⚙ 設定</h2>
-      <button class="s-close" onclick="closeSettings()">✕</button>
+<div id="nav-overlay" onclick="if(event.target===this)closeNavDrawer()">
+  <div id="nav-drawer">
+    <div class="nav-drawer-head">
+      <span class="nav-drawer-title">⚡ Manager</span>
+      <button class="nav-close" onclick="closeNavDrawer()">✕</button>
     </div>
+    <div class="nav-list">
+      <button class="nav-item" onclick="goHome()">
+        <span class="nav-item-icon">🏠</span>ホーム
+      </button>
+      <button class="nav-item" onclick="openSettingsPage()">
+        <span class="nav-item-icon">⚙</span>設定
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SETTINGS PAGE（フルスクリーン）
+══════════════════════════════════════ -->
+<div id="settings-page">
+  <div class="spg-header">
+    <button class="spg-back" onclick="closeSettingsPage()">&#8592; 戻る</button>
+    <span class="spg-title">⚙ 設定</span>
+  </div>
+  <div class="spg-body">
 
     <!-- Account -->
     <div class="s-section">
@@ -546,45 +599,99 @@
 
     <!-- API Keys -->
     <div class="s-section">
-      <div class="s-section-title">API設定</div>
+      <div class="s-section-title">🔑 API設定</div>
       <div class="s-field">
-        <label class="s-label">Google Client ID（Google Sign-In用）</label>
+        <label class="s-label">Google Client ID
+          <span style="color:var(--sub);font-weight:400">— Google Sign-In用</span>
+        </label>
         <input id="s-google-client-id" class="s-input" type="text" placeholder="xxxxx.apps.googleusercontent.com">
       </div>
       <div class="s-field">
-        <label class="s-label">Toggl API Key</label>
+        <label class="s-label">Toggl API Key
+          <span style="color:var(--sub);font-weight:400">— 時間記録</span>
+        </label>
         <input id="s-toggl" class="s-input" type="password" placeholder="（変更する場合のみ入力）">
       </div>
       <div class="s-field">
-        <label class="s-label">Todoist API Token</label>
+        <label class="s-label">Todoist API Token
+          <span style="color:var(--sub);font-weight:400">— タスク管理</span>
+        </label>
         <input id="s-todoist" class="s-input" type="password" placeholder="（変更する場合のみ入力）">
       </div>
       <div class="s-field">
-        <label class="s-label">Gemini API Key</label>
+        <label class="s-label">Gemini API Key
+          <span style="color:var(--sub);font-weight:400">— AI チャット</span>
+        </label>
         <input id="s-gemini" class="s-input" type="password" placeholder="（変更する場合のみ入力）">
       </div>
       <div class="s-field">
-        <label class="s-label">Linear API Key</label>
+        <label class="s-label">Linear API Key
+          <span style="color:var(--sub);font-weight:400">— タスク管理（週次）</span>
+        </label>
         <input id="s-linear" class="s-input" type="password" placeholder="（変更する場合のみ入力）">
       </div>
       <div class="s-field">
         <label class="s-label">Linear Team ID</label>
-        <input id="s-linear-team" class="s-input" type="text">
-      </div>
-      <div class="s-field">
-        <label class="s-label">Spreadsheet ID</label>
-        <input id="s-sheet" class="s-input" type="text">
+        <input id="s-linear-team" class="s-input" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
       </div>
       <button class="s-btn" onclick="saveApiSettings()">保存</button>
       <div id="api-msg" class="s-msg"></div>
+    </div>
+
+    <!-- Spreadsheet -->
+    <div class="s-section">
+      <div class="s-section-title">📊 スプレッドシート設定</div>
+      <p style="font-size:11px;color:var(--sub);margin-bottom:14px;line-height:1.6">
+        GoogleスプレッドシートのURLから<code style="background:var(--bg);padding:1px 5px;border-radius:3px">/d/</code>と<code style="background:var(--bg);padding:1px 5px;border-radius:3px">/edit</code>の間の文字列がIDです。
+      </p>
+      <div class="s-field">
+        <label class="s-label">メインスプレッドシートID</label>
+        <p style="font-size:11px;color:var(--sub);margin-bottom:6px">
+          Study Progress（学習進捗管理）・メモリ保存・ログ保存に使用するスプレッドシート。
+        </p>
+        <input id="s-sheet" class="s-input" type="text" placeholder="1Ar-vhALZucaEXsykc_...">
+      </div>
+      <div class="s-field" style="margin-top:14px">
+        <label class="s-label">NotebookLM ドキュメントフォルダID</label>
+        <p style="font-size:11px;color:var(--sub);margin-bottom:6px">
+          NotebookLMからエクスポートした Google Docs を保存するフォルダ。
+          進捗表作成時にこのフォルダ内のDocを参照します。<br>
+          Google Drive でフォルダを右クリック →「リンクをコピー」→ URLの
+          <code style="background:var(--bg);padding:1px 5px;border-radius:3px">folders/</code>以降がID。
+        </p>
+        <input id="s-notebooklm-folder" class="s-input" type="text" placeholder="1aBcDeFgHiJkLmNoPqRs...">
+      </div>
+      <button class="s-btn" style="margin-top:8px" onclick="saveSpreadsheetSettings()">保存</button>
+      <div id="sheet-msg" class="s-msg"></div>
+    </div>
+
+    <!-- Memory -->
+    <div class="s-section">
+      <div class="s-section-title">📋 メモリ管理</div>
+      <div id="memory-list" style="margin-bottom:12px">
+        <div style="color:var(--sub);font-size:12px">読み込み中...</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input id="mem-key" class="s-input" type="text" placeholder="キー（例: 講義時間）" style="flex:1">
+      </div>
+      <textarea id="mem-value" class="s-input" rows="4"
+                placeholder="内容（例: 1限 9:00-10:30&#10;2限 10:45-12:15）"
+                style="resize:vertical;font-family:inherit;line-height:1.5"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="s-btn" onclick="saveMemoryItem()" style="flex:1">保存</button>
+        <button class="s-btn" onclick="deleteMemoryItem()"
+                style="background:none;border:1px solid var(--border);color:var(--sub);flex:1">削除</button>
+      </div>
+      <div id="mem-msg" class="s-msg"></div>
     </div>
 
     <!-- Logout -->
     <div class="s-section">
       <button class="s-btn danger" style="width:100%" onclick="doLogout()">ログアウト</button>
     </div>
-  </div>
-</div>
+
+  </div><!-- /spg-body -->
+</div><!-- /settings-page -->
 
 <!-- ══════════════════════════════════════
      MAIN APP
@@ -601,7 +708,7 @@
         <div class="header-date" id="header-date"></div>
         <div class="header-time" id="header-time">--:--</div>
       </div>
-      <button class="hamburger" onclick="openSettings()" title="設定">
+      <button class="hamburger" onclick="openNavDrawer()" title="メニュー">
         <span></span><span></span><span></span>
       </button>
     </div>
@@ -690,7 +797,7 @@
     <button class="bnav-item" data-tab="dashboard" onclick="switchTab('dashboard')">
       <span class="bnav-icon">📊</span>Dashboard
     </button>
-    <button class="bnav-item" data-tab="settings" onclick="openSettings()">
+    <button class="bnav-item" data-tab="settings" onclick="openNavDrawer()">
       <span class="bnav-icon">⚙</span>Settings
     </button>
   </nav>
@@ -897,19 +1004,28 @@
   // ══════════════════════════════════════
   // SETTINGS
   // ══════════════════════════════════════
-  function openSettings() {
+  function openNavDrawer() {
+    document.getElementById('nav-overlay').classList.add('open');
+  }
+  function closeNavDrawer() {
+    document.getElementById('nav-overlay').classList.remove('open');
+  }
+  function openSettingsPage() {
+    closeNavDrawer();
     if (currentUser) {
       document.getElementById('s-name').textContent   = currentUser.name  || '-';
       document.getElementById('s-email').textContent  = currentUser.email || '-';
       document.getElementById('s-avatar').textContent = (currentUser.name || '?')[0].toUpperCase();
     }
-    document.getElementById('settings-overlay').classList.add('open');
+    document.getElementById('settings-page').classList.add('open');
+    loadMemoryList();
   }
-  function closeSettings() {
-    document.getElementById('settings-overlay').classList.remove('open');
+  function closeSettingsPage() {
+    document.getElementById('settings-page').classList.remove('open');
   }
-  function closeSettingsOnOverlay(e) {
-    if (e.target === document.getElementById('settings-overlay')) closeSettings();
+  function goHome() {
+    closeNavDrawer();
+    switchTab('home');
   }
 
   function submitChangePassword() {
@@ -935,13 +1051,24 @@
       todoistToken:   document.getElementById('s-todoist').value,
       geminiApiKey:   document.getElementById('s-gemini').value,
       linearApiKey:   document.getElementById('s-linear').value,
-      linearTeamId:   document.getElementById('s-linear-team').value,
-      spreadsheetId:  document.getElementById('s-sheet').value
+      linearTeamId:   document.getElementById('s-linear-team').value
     };
     gasApi('updateSettingsData', { token: authToken, settings })
       .then(function(res) {
         if (res.error) showSMsg('api-msg', 'err', res.error);
         else showSMsg('api-msg', 'ok', '保存しました');
+      });
+  }
+
+  function saveSpreadsheetSettings() {
+    var settings = {
+      spreadsheetId:      document.getElementById('s-sheet').value,
+      notebooklmFolderId: document.getElementById('s-notebooklm-folder').value
+    };
+    gasApi('updateSettingsData', { token: authToken, settings })
+      .then(function(res) {
+        if (res.error) showSMsg('sheet-msg', 'err', res.error);
+        else showSMsg('sheet-msg', 'ok', '保存しました');
       });
   }
 
@@ -953,7 +1080,73 @@
   function doLogout() {
     if (!confirm('ログアウトしますか？')) return;
     gasApi('logoutUser', { token: authToken }).catch(function(){});
-    clearAuth(); closeSettings(); showAuthScreen();
+    clearAuth(); closeSettingsPage(); showAuthScreen();
+  }
+
+  // ══════════════════════════════════════
+  // MEMORY
+  // ══════════════════════════════════════
+  function loadMemoryList() {
+    var el = document.getElementById('memory-list');
+    el.innerHTML = '<div style="color:var(--sub);font-size:12px">読み込み中...</div>';
+    gasApi('getMemoryData', { token: authToken })
+      .then(function(data) {
+        if (data.error) { el.innerHTML = '<div style="color:var(--red);font-size:12px">⚠ ' + esc(data.error) + '</div>'; return; }
+        var keys = Object.keys(data);
+        if (!keys.length) {
+          el.innerHTML = '<div style="color:var(--sub);font-size:12px">まだメモリは登録されていません</div>';
+          return;
+        }
+        var html = '';
+        keys.forEach(function(k) {
+          html += '<div style="display:flex;align-items:center;justify-content:space-between;' +
+                  'padding:8px 10px;background:var(--bg-hover);border-radius:6px;margin-bottom:6px;cursor:pointer"' +
+                  ' onclick="selectMemory(' + JSON.stringify(k) + ',' + JSON.stringify(data[k].value) + ')">' +
+                  '<div>' +
+                  '<div style="font-size:13px;font-weight:600">' + esc(k) + '</div>' +
+                  '<div style="font-size:11px;color:var(--sub);margin-top:2px;white-space:pre-wrap">' + esc(data[k].value.slice(0, 60)) + (data[k].value.length > 60 ? '...' : '') + '</div>' +
+                  '</div>' +
+                  '<div style="font-size:10px;color:var(--sub);flex-shrink:0;margin-left:8px">' + esc(data[k].updatedAt) + '</div>' +
+                  '</div>';
+        });
+        el.innerHTML = html;
+      })
+      .catch(function(e) {
+        el.innerHTML = '<div style="color:var(--red);font-size:12px">⚠ ' + esc(e.message) + '</div>';
+      });
+  }
+
+  function selectMemory(key, value) {
+    document.getElementById('mem-key').value   = key;
+    document.getElementById('mem-value').value = value;
+  }
+
+  function saveMemoryItem() {
+    var key   = document.getElementById('mem-key').value.trim();
+    var value = document.getElementById('mem-value').value.trim();
+    if (!key || !value) { showSMsg('mem-msg', 'err', 'キーと内容を入力してください'); return; }
+    gasApi('saveMemoryData', { token: authToken, key: key, value: value })
+      .then(function(res) {
+        if (res.error) { showSMsg('mem-msg', 'err', res.error); return; }
+        showSMsg('mem-msg', 'ok', '「' + key + '」を保存しました');
+        document.getElementById('mem-key').value   = '';
+        document.getElementById('mem-value').value = '';
+        loadMemoryList();
+      });
+  }
+
+  function deleteMemoryItem() {
+    var key = document.getElementById('mem-key').value.trim();
+    if (!key) { showSMsg('mem-msg', 'err', '削除するキーを入力してください'); return; }
+    if (!confirm('「' + key + '」をメモリから削除しますか？')) return;
+    gasApi('deleteMemoryData', { token: authToken, key: key })
+      .then(function(res) {
+        if (res.error) { showSMsg('mem-msg', 'err', res.error); return; }
+        showSMsg('mem-msg', 'ok', '「' + key + '」を削除しました');
+        document.getElementById('mem-key').value   = '';
+        document.getElementById('mem-value').value = '';
+        loadMemoryList();
+      });
   }
 
   // ══════════════════════════════════════
@@ -1150,7 +1343,7 @@
     if (!text) return;
     appendMessage('user', text);
     inputEl.value = ''; inputEl.style.height = 'auto'; inputEl.disabled = true; btn.disabled = true;
-    gasApi('processChatMessage', { message: text, history: chatHistoryContext })
+    gasApi('processChatMessage', { message: text, history: chatHistoryContext, token: authToken })
       .then(function(res) {
         inputEl.disabled = false; btn.disabled = false; inputEl.focus();
         if (res.error) { appendMessage('ai', '⚠ エラー: ' + res.error); return; }
