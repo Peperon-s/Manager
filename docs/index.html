@@ -85,13 +85,6 @@
     .auth-divider::before, .auth-divider::after {
       content: ''; flex: 1; height: 1px; background: var(--border);
     }
-    .google-btn {
-      width: 100%; padding: 10px; background: #fff; color: #3c4043;
-      border: 1px solid #dadce0; border-radius: 8px; font-size: 14px;
-      cursor: pointer; display: flex; align-items: center;
-      justify-content: center; gap: 10px; transition: .2s;
-    }
-    .google-btn:active { background: #f0f0f0; }
     .auth-error {
       color: var(--red); font-size: 12px; padding: 8px 12px;
       background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.3);
@@ -853,8 +846,6 @@
 
 </div><!-- /app -->
 
-<!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <script>
   // ══════════════════════════════════════
@@ -897,11 +888,20 @@
   // INIT
   // ══════════════════════════════════════
   (async function init() {
-    // clientIdだけ取得（initializeはボタン押下時のみ呼ぶ）
     try {
       var cfg = await gasApi('getClientConfig');
       googleClientId = cfg.googleClientId || '';
     } catch (e) {}
+
+    // Google OAuthリダイレクト戻りを処理（URLフラグメントに id_token がある場合）
+    var hash = location.hash;
+    if (hash && hash.includes('id_token=')) {
+      var params = new URLSearchParams(hash.slice(1));
+      var idToken = params.get('id_token');
+      var mode    = localStorage.getItem('google_auth_mode') || 'login';
+      history.replaceState(null, '', location.pathname); // URLからトークンを除去
+      if (idToken) { await handleGoogleIdToken(idToken, mode); return; }
+    }
 
     // 既存トークンを検証
     if (authToken) {
@@ -966,46 +966,71 @@
 
   // ── Google Sign-In ─────────────────────
   function googleSignIn(mode) {
-    pendingGoogleMode = mode;
     if (!googleClientId || googleClientId.startsWith('YOUR_')) {
       alert('Google Sign-InにはGOOGLE_CLIENT_IDの設定が必要です。\n設定 → Google Client ID から設定してください。');
       return;
     }
-    // ボタン押下時にだけ初期化→即プロンプト（ページ読み込み時の自動One Tap防止）
-    google.accounts.id.initialize({ client_id: googleClientId, callback: handleGoogleCallback });
-    google.accounts.id.prompt();
+    localStorage.setItem('google_auth_mode', mode);
+    var redirectUri = location.origin + location.pathname;
+    var nonce = Math.random().toString(36).slice(2);
+    var params = new URLSearchParams({
+      client_id:     googleClientId,
+      redirect_uri:  redirectUri,
+      response_type: 'id_token',
+      scope:         'openid email profile',
+      nonce:         nonce,
+      prompt:        'select_account'
+    });
+    location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
   }
 
-  function handleGoogleCallback(response) {
-    var credential = response.credential;
-    if (pendingGoogleMode === 'register') {
-      gasApi('verifyGoogleCredential', { credential }).then(function(data) {
-        if (data.needsRegistration) {
-          var name = prompt('お名前を入力してください', data.name || '');
-          if (name === null) return;
-          gasApi('registerWithGoogle', { credential, name }).then(function(d) {
-            var err = afterLogin(d);
-            if (err) showAuthError('register', err);
-          });
-        } else if (data.error) {
-          showAuthError('register', data.error);
-        } else {
-          var err = afterLogin(data);
-          if (err) showAuthError('register', err);
-        }
-      });
+  async function handleGoogleIdToken(credential, mode) {
+    if (mode === 'register') {
+      var data = await gasApi('verifyGoogleCredential', { credential });
+      if (data.needsRegistration) {
+        // 名前入力UIを表示してから登録
+        showAuthScreen();
+        showGoogleNameForm(credential, data.name || '');
+      } else if (data.error) {
+        showAuthScreen(); showAuthError('register', data.error);
+      } else {
+        var err = afterLogin(data);
+        if (err) { showAuthScreen(); showAuthError('register', err); }
+      }
     } else {
-      gasApi('verifyGoogleCredential', { credential }).then(function(data) {
-        if (data.needsRegistration) {
-          showAuthError('login', 'このGoogleアカウントは未登録です。「アカウント作成」から登録してください。');
-        } else if (data.error) {
-          showAuthError('login', data.error);
-        } else {
-          var err = afterLogin(data);
-          if (err) showAuthError('login', err);
-        }
-      });
+      var data = await gasApi('verifyGoogleCredential', { credential });
+      if (data.needsRegistration) {
+        showAuthScreen(); showAuthError('login', 'このGoogleアカウントは未登録です。「アカウント作成」から登録してください。');
+      } else if (data.error) {
+        showAuthScreen(); showAuthError('login', data.error);
+      } else {
+        var err = afterLogin(data);
+        if (err) { showAuthScreen(); showAuthError('login', err); }
+      }
     }
+  }
+
+  function showGoogleNameForm(credential, suggestedName) {
+    switchAuthTab('register');
+    var errEl = document.getElementById('register-error');
+    errEl.style.display = 'block';
+    errEl.style.color = 'var(--text)';
+    errEl.style.background = 'var(--bg-hover)';
+    errEl.style.border = '1px solid var(--border)';
+    errEl.innerHTML =
+      'お名前を入力して登録を完了してください。<br>' +
+      '<input id="google-name-input" class="auth-input" style="margin-top:8px" type="text" placeholder="お名前" value="' + esc(suggestedName) + '">' +
+      '<button class="auth-btn" style="margin-top:6px" onclick="submitGoogleName(\'' + encodeURIComponent(credential) + '\')">登録する</button>';
+  }
+
+  function submitGoogleName(encodedCredential) {
+    var credential = decodeURIComponent(encodedCredential);
+    var name = document.getElementById('google-name-input').value.trim();
+    if (!name) return;
+    gasApi('registerWithGoogle', { credential, name }).then(function(d) {
+      var err = afterLogin(d);
+      if (err) showAuthError('register', err);
+    });
   }
 
   // ── Email/Password Auth ────────────────
