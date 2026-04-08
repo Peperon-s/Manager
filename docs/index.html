@@ -908,7 +908,7 @@
   // ══════════════════════════════════════
   // CONFIG — GASのWebAppURLに変更してください
   // ══════════════════════════════════════
-  const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbze8XVnjfYDyaBKMqB1uZbi27mq0kd3lgoslMLIc5pUSYott1vOAe9P_9c7JYSxRxoY/exec';
+  const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxVLyB7ByQpL3nukf64qkzfcRwCluVR5ab6_tDJnMprSQLs9xRG4YaJtYcmGf52JsVj/exec';
 
   // ══════════════════════════════════════
   // GAS API ヘルパー
@@ -965,8 +965,12 @@
       try {
         var res = await gasApi('verifyToken', { token: authToken });
         if (res.email) { showApp(); return; }
-      } catch (e) {}
-      clearAuth();
+        // サーバーから明示的に無効と返された場合のみログアウト
+        clearAuth();
+      } catch (e) {
+        // ネットワークエラー等の場合はトークンを保持したままアプリを表示
+        showApp(); return;
+      }
     }
     showAuthScreen();
   })();

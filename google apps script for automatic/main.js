@@ -98,13 +98,12 @@ function handleWebChatMessage_(userMessage, history, userEmail, imageBase64, ima
 
     // ツール実行
     const call = funcPart.functionCall;
-    call._userEmail = userEmail || null;
     logToSheet("ツール呼び出し(" + (toolCallCount + 1) + "): " + call.name + " " + JSON.stringify(call.args));
     shouldRefresh = true;
 
     let toolResult;
     try {
-      toolResult = String(executeFunctionCall_(call));
+      toolResult = String(executeFunctionCall_(call, userEmail || null));
     } catch (e) {
       toolResult    = "ツール実行エラー: " + e.message;
       shouldRefresh = false;
@@ -130,7 +129,7 @@ function handleWebChatMessage_(userMessage, history, userEmail, imageBase64, ima
 }
 
 // ツール呼び出しのルーティング
-function executeFunctionCall_(call) {
+function executeFunctionCall_(call, userEmail) {
   const name = call.name;
   const args = call.args;
 
@@ -183,9 +182,9 @@ function executeFunctionCall_(call) {
   if (name === "linearGetCycleSummary"){ return linearGetCycleSummary(args.projectKey); }
 
   // -- Memory
-  if (name === "saveMemory")       { return saveMemory(call._userEmail||null, args.key, args.value); }
-  if (name === "deleteMemory")     { return deleteMemory(call._userEmail||null, args.key); }
-  if (name === "listMemories")     { return listMemories(call._userEmail||null); }
+  if (name === "saveMemory")       { return saveMemory(userEmail||null, args.key, args.value); }
+  if (name === "deleteMemory")     { return deleteMemory(userEmail||null, args.key); }
+  if (name === "listMemories")     { return listMemories(userEmail||null); }
   if (name === "readSheetFromUrl") { return readSheetFromUrl(args.url, args.sheetName||null); }
 
   return "不明なツール呼び出しです: " + name;

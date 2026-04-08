@@ -33,11 +33,12 @@ function authSaveTokens_(tokens) {
   PropertiesService.getScriptProperties().setProperty("MANAGER_TOKENS", JSON.stringify(tokens));
 }
 
+var TOKEN_TTL_MS_ = 365 * 24 * 60 * 60 * 1000; // 365日
+
 function authIssueToken_(email) {
   var token  = Utilities.getUuid();
   var tokens = authGetTokens_();
-  // 期限: 7日
-  tokens[token] = { email: email, expiry: Date.now() + 7 * 24 * 60 * 60 * 1000 };
+  tokens[token] = { email: email, expiry: Date.now() + TOKEN_TTL_MS_ };
   authSaveTokens_(tokens);
   return token;
 }
@@ -129,6 +130,9 @@ function verifyToken(token) {
     authSaveTokens_(tokens);
     return null;
   }
+  // アクセスのたびに有効期限をリセット（スライディングウィンドウ）
+  session.expiry = Date.now() + TOKEN_TTL_MS_;
+  authSaveTokens_(tokens);
   return session.email;
 }
 
