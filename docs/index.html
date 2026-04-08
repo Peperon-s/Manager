@@ -1449,14 +1449,14 @@
       return pa - pb;                           // なし: 優先度のみ
     });
     var html  = '';
-    all.slice(0,10).forEach(function(item) {
+    all.slice(0,8).forEach(function(item) {
       var overdue = item.t.due && item.t.due < today;
       html += '<div class="task-item"><div class="priority-dot ' + item.p + '"></div>' +
               '<div class="task-content">' + esc(item.t.content) +
               (item.t.due ? '<div class="task-due' + (overdue?' overdue':'') + '">期限: ' + esc(item.t.due) + '</div>' : '') +
               '</div></div>';
     });
-    if (all.length > 10) html += '<div style="color:var(--sub);font-size:11px;padding-top:6px">他 ' + (all.length-10) + ' 件...</div>';
+    if (all.length > 8) html += '<div style="color:var(--sub);font-size:11px;padding-top:6px">他 ' + (all.length-8) + ' 件...</div>';
     el.innerHTML = html;
   }
 
