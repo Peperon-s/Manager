@@ -58,7 +58,11 @@ function nlmFetch_(path, method, body) {
   var res  = UrlFetchApp.fetch(url, options);
   var code = res.getResponseCode();
   var text = res.getContentText();
+  logToSheet("【NLM " + (method||"get").toUpperCase() + " " + path + "】" + code + " / " + text.substring(0, 200));
   if (!text || !text.trim()) return {};          // 204 No Content など
+  if (text.trim().charAt(0) !== "{" && text.trim().charAt(0) !== "[") {
+    throw new Error("HTTP " + code + " (非JSONレスポンス): " + text.substring(0, 100));
+  }
   var json = JSON.parse(text);
   if (code >= 400) throw new Error(json.error ? json.error.message : "HTTP " + code);
   return json;
@@ -81,10 +85,10 @@ function notebookLMCreate(title) {
 // ノートブック一覧
 // ==========================================
 function notebookLMList() {
-  var res       = nlmFetch_("", "get");   // GET /notebooks
+  var res       = nlmFetch_(":listRecentlyViewed", "get");
   var notebooks = res.notebooks || [];
   if (!notebooks.length) return "📓 ノートブックはまだありません。";
-  var lines = ["📓 ノートブック一覧："];
+  var lines = ["📓 最近のノートブック一覧："];
   notebooks.forEach(function(nb) {
     var id = nb.name ? nb.name.split("/").pop() : "?";
     lines.push("• " + (nb.title || "無題") + "\n  ID: " + id
@@ -134,7 +138,7 @@ function notebookLMDelete(notebookId) {
 // ==========================================
 function notebookLMDashData_() {
   try {
-    var res       = nlmFetch_("", "get");  // GET /notebooks
+    var res       = nlmFetch_(":listRecentlyViewed", "get");
     var all       = res.notebooks || [];
     var notebooks = all.slice(0, 6).map(function(nb) {
       var id = nb.name ? nb.name.split("/").pop() : "";
@@ -151,7 +155,7 @@ function notebookLMDashData_() {
 // ==========================================
 function notebookLMBuildContext_() {
   try {
-    var res       = nlmFetch_("", "get");
+    var res       = nlmFetch_(":listRecentlyViewed", "get");
     var notebooks = res.notebooks || [];
     if (!notebooks.length) return "NotebookLM: ノートブックなし";
     var lines = ["利用可能な NotebookLM ノートブック:"];
