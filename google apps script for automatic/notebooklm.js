@@ -78,13 +78,13 @@ function notebookLMCreate(title) {
 }
 
 // ==========================================
-// ノートブック一覧（最近閲覧）
+// ノートブック一覧
 // ==========================================
 function notebookLMList() {
-  var res       = nlmFetch_(":listRecentlyViewed", "get");
+  var res       = nlmFetch_("", "get");   // GET /notebooks
   var notebooks = res.notebooks || [];
   if (!notebooks.length) return "📓 ノートブックはまだありません。";
-  var lines = ["📓 最近のノートブック一覧："];
+  var lines = ["📓 ノートブック一覧："];
   notebooks.forEach(function(nb) {
     var id = nb.name ? nb.name.split("/").pop() : "?";
     lines.push("• " + (nb.title || "無題") + "\n  ID: " + id
@@ -134,12 +134,13 @@ function notebookLMDelete(notebookId) {
 // ==========================================
 function notebookLMDashData_() {
   try {
-    var res       = nlmFetch_(":listRecentlyViewed", "get");
-    var notebooks = (res.notebooks || []).slice(0, 6).map(function(nb) {
+    var res       = nlmFetch_("", "get");  // GET /notebooks
+    var all       = res.notebooks || [];
+    var notebooks = all.slice(0, 6).map(function(nb) {
       var id = nb.name ? nb.name.split("/").pop() : "";
       return { id: id, title: nb.title || "無題" };
     });
-    return { notebooks: notebooks, total: (res.notebooks || []).length };
+    return { notebooks: notebooks, total: all.length };
   } catch (e) {
     return { notebooks: [], total: 0, error: e.message };
   }
@@ -150,7 +151,7 @@ function notebookLMDashData_() {
 // ==========================================
 function notebookLMBuildContext_() {
   try {
-    var res       = nlmFetch_(":listRecentlyViewed", "get");
+    var res       = nlmFetch_("", "get");
     var notebooks = res.notebooks || [];
     if (!notebooks.length) return "NotebookLM: ノートブックなし";
     var lines = ["利用可能な NotebookLM ノートブック:"];
