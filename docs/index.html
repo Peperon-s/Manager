@@ -1497,7 +1497,7 @@
       bubble.innerHTML = esc(text).replace(/\n/g, '<br>');
     }
 
-    // タイピングインジケーターの前に挿入
+    row.appendChild(bubble);
     hist.insertBefore(row, typing);
     hist.scrollTop = hist.scrollHeight;
   }
