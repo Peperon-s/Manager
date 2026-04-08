@@ -120,8 +120,7 @@ function getDashboardData() {
       calendar:  getCalendarDashData_(),
       tasks:     getTasksDashData_(),
       progress:  getProgressDashData_(),
-      linear:    getLinearDashData_(),
-      notebooklm: notebookLMDashData_()
+      linear:    getLinearDashData_()
     });
   } catch (e) {
     logToSheet("【Dashboard Error】" + e.toString());

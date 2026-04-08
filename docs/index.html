@@ -530,20 +530,6 @@
       .linear-projects { flex-direction:column; gap:16px; }
     }
 
-    /* ─── NotebookLM ─── */
-    .nlm-list { display:flex; flex-wrap:wrap; gap:10px; }
-    .nlm-item {
-      flex: 1 1 180px; min-width:0;
-      background: var(--bg-hover); border-radius: 10px;
-      padding: 10px 12px; text-decoration: none;
-      color: var(--text); transition: background .15s;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .nlm-item:hover { background: var(--border); }
-    .nlm-item-icon  { font-size: 18px; flex-shrink: 0; }
-    .nlm-item-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .nlm-empty      { color: var(--sub); font-size: 13px; }
-
     /* ─── Progress ─── */
     .progress-item { margin-bottom: 16px; }
     .progress-item:last-child { margin-bottom: 0; }
@@ -762,16 +748,6 @@
         </p>
         <input id="s-sheet" class="s-input" type="text" placeholder="1Ar-vhALZucaEXsykc_...">
       </div>
-      <div class="s-field" style="margin-top:14px">
-        <label class="s-label">NotebookLM ドキュメントフォルダID</label>
-        <p style="font-size:11px;color:var(--sub);margin-bottom:6px">
-          NotebookLMからエクスポートした Google Docs を保存するフォルダ。
-          進捗表作成時にこのフォルダ内のDocを参照します。<br>
-          Google Drive でフォルダを右クリック →「リンクをコピー」→ URLの
-          <code style="background:var(--bg);padding:1px 5px;border-radius:3px">folders/</code>以降がID。
-        </p>
-        <input id="s-notebooklm-folder" class="s-input" type="text" placeholder="1aBcDeFgHiJkLmNoPqRs...">
-      </div>
       <button class="s-btn" style="margin-top:8px" onclick="saveSpreadsheetSettings()">保存</button>
       <div id="sheet-msg" class="s-msg"></div>
     </div>
@@ -884,16 +860,6 @@
           </div>
         </div>
 
-        <div class="card card-wide">
-          <div class="card-header">
-            <span class="card-icon">📓</span>
-            <span class="card-title">NotebookLM</span>
-            <span class="card-badge" id="nlm-badge">-</span>
-          </div>
-          <div class="card-body" id="nlm-body">
-            <div class="loading"><div class="spinner"></div>読み込み中...</div>
-          </div>
-        </div>
 
       </div>
     </div><!-- /dashboard-pane -->
@@ -970,7 +936,7 @@
   // ══════════════════════════════════════
   // CONFIG — GASのWebAppURLに変更してください
   // ══════════════════════════════════════
-  const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxdsup9EDHe4OuJWoL0Hun8tVJHMbYgatkehJK6JcbugPTijqyAbAPEzRhfGZt8xq3d/exec';
+  const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyQ1edS3hftK4BVZ4m4THn-gHd7PjACIAO3vKhiNkjvWj3nl8TVGM6uW2fNism8qKIr/exec';
 
   // ══════════════════════════════════════
   // GAS API ヘルパー
@@ -1260,8 +1226,7 @@
 
   function saveSpreadsheetSettings() {
     var settings = {
-      spreadsheetId:      document.getElementById('s-sheet').value,
-      notebooklmFolderId: document.getElementById('s-notebooklm-folder').value
+      spreadsheetId:      document.getElementById('s-sheet').value
     };
     gasApi('updateSettingsData', { token: authToken, settings })
       .then(function(res) {
@@ -1405,7 +1370,7 @@
   // DASHBOARD
   // ══════════════════════════════════════
   function loadDashboard() {
-    ['toggl-body','calendar-body','tasks-body','progress-body','linear-body','nlm-body'].forEach(function(id) {
+    ['toggl-body','calendar-body','tasks-body','progress-body','linear-body'].forEach(function(id) {
       document.getElementById(id).innerHTML =
         '<div class="loading"><div class="spinner"></div>読み込み中...</div>';
     });
@@ -1416,10 +1381,9 @@
         renderTasks(data.tasks       || {});
         renderProgress(data.progress || []);
         renderLinear(data.linear     || {});
-        renderNotebookLM(data.notebooklm || {});
       })
       .catch(function(err) {
-        ['toggl-body','calendar-body','tasks-body','progress-body','linear-body','nlm-body'].forEach(function(id) {
+        ['toggl-body','calendar-body','tasks-body','progress-body','linear-body'].forEach(function(id) {
           document.getElementById(id).innerHTML = '<div class="error-msg">⚠ ' + esc(err.message) + '</div>';
         });
       });
@@ -1589,30 +1553,6 @@
               + '</div></div>';
       });
       html += '</div>';
-    });
-    html += '</div>';
-    el.innerHTML = html;
-  }
-
-  // ── NotebookLM ────────────────────────────
-  function renderNotebookLM(data) {
-    var el = document.getElementById('nlm-body');
-    document.getElementById('nlm-badge').textContent = (data.total || 0) + '件';
-    if (data.error) {
-      el.innerHTML = '<div class="error-msg">⚠ NotebookLM取得エラー: ' + esc(data.error) + '</div>';
-      return;
-    }
-    if (!data.notebooks || !data.notebooks.length) {
-      el.innerHTML = '<div class="nlm-empty">📓 ノートブックはまだありません。チャットで「ノートブックを作って」と話しかけてください。</div>';
-      return;
-    }
-    var html = '<div class="nlm-list">';
-    data.notebooks.forEach(function(nb) {
-      var url = 'https://notebooklm.google.com/notebook/' + esc(nb.id);
-      html += '<a class="nlm-item" href="' + url + '" target="_blank" rel="noopener">'
-            + '<span class="nlm-item-icon">📓</span>'
-            + '<span class="nlm-item-title">' + esc(nb.title) + '</span>'
-            + '</a>';
     });
     html += '</div>';
     el.innerHTML = html;

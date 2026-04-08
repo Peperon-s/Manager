@@ -187,12 +187,6 @@ function executeFunctionCall_(call, userEmail) {
   if (name === "listMemories")     { return listMemories(userEmail||null); }
   if (name === "readSheetFromUrl") { return readSheetFromUrl(args.url, args.sheetName||null); }
 
-  // -- NotebookLM
-  if (name === "notebookLMCreate")    { return notebookLMCreate(args.title); }
-  if (name === "notebookLMList")      { return notebookLMList(); }
-  if (name === "notebookLMAddSource") { return notebookLMAddSource(args.notebookId, args.sourceType, args.content, args.title||null); }
-  if (name === "notebookLMDelete")    { return notebookLMDelete(args.notebookId); }
-
   return "不明なツール呼び出しです: " + name;
 }
 
@@ -471,48 +465,6 @@ function getUniversalToolDeclarations_() {
       }
     },
 
-    // ── NotebookLM ──────────────────────────────
-    {
-      name: "notebookLMCreate",
-      description: "NotebookLM Enterprise に新しいノートブックを作成する。「ノートブックを作って」「NotebookLMに保存して」と言ったときに呼び出す。",
-      parameters: {
-        type: "OBJECT",
-        properties: {
-          title: { type: "STRING", description: "ノートブックのタイトル" }
-        },
-        required: ["title"]
-      }
-    },
-    {
-      name: "notebookLMList",
-      description: "NotebookLM のノートブック一覧（最近閲覧したもの）を取得する。「ノートブックの一覧を見せて」と言ったときに呼び出す。",
-      parameters: { type: "OBJECT", properties: {} }
-    },
-    {
-      name: "notebookLMAddSource",
-      description: "NotebookLM のノートブックにソース（URL・テキスト・Driveファイル）を追加する。「このURLをノートブックに追加して」「資料を登録して」と言ったときに呼び出す。",
-      parameters: {
-        type: "OBJECT",
-        properties: {
-          notebookId: { type: "STRING", description: "追加先ノートブックのID" },
-          sourceType: { type: "STRING", enum: ["url", "text", "drive"], description: "ソース種別: url / text / drive" },
-          content:    { type: "STRING", description: "URLの場合はURL、textの場合は本文、driveの場合はファイルID" },
-          title:      { type: "STRING", description: "テキストソースのタイトル（sourceType=text のときのみ使用）" }
-        },
-        required: ["notebookId", "sourceType", "content"]
-      }
-    },
-    {
-      name: "notebookLMDelete",
-      description: "NotebookLM のノートブックを削除する。「ノートブックを削除して」と言ったときに呼び出す。",
-      parameters: {
-        type: "OBJECT",
-        properties: {
-          notebookId: { type: "STRING", description: "削除するノートブックのID" }
-        },
-        required: ["notebookId"]
-      }
-    }
   ];
 }
 
