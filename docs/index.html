@@ -1475,10 +1475,13 @@
     if (rawHtml) {
       bubble.innerHTML = text;
     } else if (role === 'ai') {
-      // Markdownレンダリング
-      bubble.innerHTML = (typeof marked !== 'undefined')
-        ? marked.parse(String(text))
-        : esc(text).replace(/\n/g, '<br>');
+      try {
+        bubble.innerHTML = (typeof marked !== 'undefined' && typeof marked.parse === 'function')
+          ? marked.parse(String(text))
+          : esc(text).replace(/\n/g, '<br>');
+      } catch(e) {
+        bubble.innerHTML = esc(text).replace(/\n/g, '<br>');
+      }
       // コピーボタン
       var copyBtn = document.createElement('button');
       copyBtn.className   = 'msg-copy-btn';
