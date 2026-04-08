@@ -472,19 +472,57 @@ function getUniversalToolDeclarations_() {
 // Gemini API 呼び出し (フォールバック)
 // ==========================================
 function geminiGenerate_(payload) {
+  // 一時エラー（高負荷）時のリトライ待機時間(ms)
+  var RETRY_DELAYS = [3000, 8000];
+
   for (var i = 0; i < GEMINI_MODELS.length; i++) {
     var model = GEMINI_MODELS[i];
-    var url   = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + GEMINI_API_KEY;
+    var url   = "https://generativelanguage.googleapis.com/v1beta/models/" + model
+                + ":generateContent?key=" + GEMINI_API_KEY;
+    var transient = false;
 
-    var response = UrlFetchApp.fetch(url, { method: "post", contentType: "application/json", payload: JSON.stringify(payload), muteHttpExceptions: true });
-    var result = JSON.parse(response.getContentText());
+    for (var attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+      if (attempt > 0) {
+        logToSheet("⏳ " + model + " リトライ " + attempt + "回目 ("
+                   + (RETRY_DELAYS[attempt - 1] / 1000) + "秒待機)");
+        Utilities.sleep(RETRY_DELAYS[attempt - 1]);
+      }
 
-    if (result.error && result.error.status === "RESOURCE_EXHAUSTED") {
-      logToSheet("⚠️ " + model + " 上限に達しました。"); continue;
+      var response = UrlFetchApp.fetch(url, {
+        method: "post", contentType: "application/json",
+        payload: JSON.stringify(payload), muteHttpExceptions: true
+      });
+      var result = JSON.parse(response.getContentText());
+
+      if (!result.error) return result; // 成功
+
+      var status = result.error.status || "";
+      var code   = result.error.code   || 0;
+
+      // クォータ超過 → リトライ不要、即次モデルへ
+      if (status === "RESOURCE_EXHAUSTED" || code === 429) {
+        logToSheet("⚠️ " + model + " クォータ超過 → 次モデルへ");
+        transient = false;
+        break;
+      }
+
+      // 高負荷・一時停止 → リトライ
+      if (status === "UNAVAILABLE" || code === 503 || code === 500) {
+        logToSheet("⚠️ " + model + " 一時エラー(" + code + "): " + result.error.message);
+        transient = true;
+        continue;
+      }
+
+      // その他のエラー（パラメータ不正など）→ リトライしても無駄なので即返却
+      return result;
     }
-    return result;
+
+    if (transient) {
+      logToSheet("⚠️ " + model + " リトライ上限 → 次モデルへ");
+    }
   }
-  return { error: { message: "全モデルの無料枠が上限に達しています" } };
+
+  return { error: { message: "全モデルで応答が得られませんでした。しばらくしてから再度お試しください。" } };
 }
 
 // ==========================================
