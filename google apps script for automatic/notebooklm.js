@@ -1,11 +1,53 @@
 // ==========================================
 // NotebookLM Enterprise API 連携
+// 認証: サービスアカウント JWT (Script Properties: NOTEBOOKLM_SA_KEY)
 // ==========================================
+
+// サービスアカウントのJWTでアクセストークンを取得（1時間キャッシュ）
+function nlmGetToken_() {
+  var cache   = CacheService.getScriptCache();
+  var cached  = cache.get("nlm_access_token");
+  if (cached) return cached;
+
+  var keyJson = PropertiesService.getScriptProperties().getProperty("NOTEBOOKLM_SA_KEY");
+  if (!keyJson) throw new Error("Script Properties に NOTEBOOKLM_SA_KEY が設定されていません");
+  var key = JSON.parse(keyJson);
+
+  var now    = Math.floor(Date.now() / 1000);
+  var header = Utilities.base64EncodeWebSafe(JSON.stringify({ alg: "RS256", typ: "JWT" })).replace(/=+$/, "");
+  var claim  = Utilities.base64EncodeWebSafe(JSON.stringify({
+    iss:   key.client_email,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud:   "https://oauth2.googleapis.com/token",
+    exp:   now + 3600,
+    iat:   now
+  })).replace(/=+$/, "");
+
+  var sigInput  = header + "." + claim;
+  var signature = Utilities.base64EncodeWebSafe(
+    Utilities.computeRsaSha256Signature(sigInput, key.private_key)
+  ).replace(/=+$/, "");
+
+  var jwt = sigInput + "." + signature;
+
+  var res    = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", {
+    method:      "post",
+    contentType: "application/x-www-form-urlencoded",
+    payload:     "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=" + jwt,
+    muteHttpExceptions: true
+  });
+  var result = JSON.parse(res.getContentText());
+  if (!result.access_token) throw new Error("トークン取得失敗: " + JSON.stringify(result));
+
+  // 55分キャッシュ（有効期限1時間より少し短め）
+  cache.put("nlm_access_token", result.access_token, 3300);
+  return result.access_token;
+}
 
 function nlmHeaders_() {
   return {
-    "Authorization": "Bearer " + ScriptApp.getOAuthToken(),
-    "Content-Type": "application/json"
+    "Authorization": "Bearer " + nlmGetToken_(),
+    "Content-Type":  "application/json"
   };
 }
 
@@ -15,7 +57,9 @@ function nlmFetch_(path, method, body) {
   if (body) options.payload = JSON.stringify(body);
   var res  = UrlFetchApp.fetch(url, options);
   var code = res.getResponseCode();
-  var json = JSON.parse(res.getContentText());
+  var text = res.getContentText();
+  if (!text || !text.trim()) return {};          // 204 No Content など
+  var json = JSON.parse(text);
   if (code >= 400) throw new Error(json.error ? json.error.message : "HTTP " + code);
   return json;
 }
@@ -37,7 +81,7 @@ function notebookLMCreate(title) {
 // ノートブック一覧（最近閲覧）
 // ==========================================
 function notebookLMList() {
-  var res      = nlmFetch_(":listRecentlyViewed", "get");
+  var res       = nlmFetch_(":listRecentlyViewed", "get");
   var notebooks = res.notebooks || [];
   if (!notebooks.length) return "📓 ノートブックはまだありません。";
   var lines = ["📓 最近のノートブック一覧："];
@@ -59,7 +103,6 @@ function notebookLMAddSource(notebookId, sourceType, content, title) {
   } else if (sourceType === "text") {
     userContent.textContent = { title: title || "テキストソース", text: content };
   } else if (sourceType === "drive") {
-    // content に Google Drive ファイル ID を渡す
     userContent.googleDriveContent = { resourceId: content };
   } else {
     throw new Error("sourceType は url / text / drive のいずれかを指定してください");
@@ -78,11 +121,10 @@ function notebookLMAddSource(notebookId, sourceType, content, title) {
 // ノートブック削除
 // ==========================================
 function notebookLMDelete(notebookId) {
-  var name = NOTEBOOKLM_BASE_URL + "/" + notebookId;
-  name = name.replace("https://", "").replace("global-discoveryengine.googleapis.com/", "");
-  // name形式: v1alpha/projects/.../notebooks/ID
   nlmFetch_(":batchDelete", "post", { names: [
-    "projects/" + NOTEBOOKLM_PROJECT_NUMBER + "/locations/" + NOTEBOOKLM_LOCATION + "/notebooks/" + notebookId
+    "projects/" + NOTEBOOKLM_PROJECT_NUMBER
+    + "/locations/" + NOTEBOOKLM_LOCATION
+    + "/notebooks/" + notebookId
   ]});
   return "🗑 ノートブック（" + notebookId + "）を削除しました。";
 }
