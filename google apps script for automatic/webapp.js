@@ -119,7 +119,8 @@ function getDashboardData() {
       toggl:     getTogglDashData_(),
       calendar:  getCalendarDashData_(),
       tasks:     getTasksDashData_(),
-      progress:  getProgressDashData_()
+      progress:  getProgressDashData_(),
+      linear:    getLinearDashData_()
     });
   } catch (e) {
     logToSheet("【Dashboard Error】" + e.toString());
@@ -263,6 +264,44 @@ function getProgressDashData_() {
       }
     });
   } catch (e) { return []; }
+}
+
+// ==========================================
+// Linear ダッシュボードデータ（プロジェクト別 open イシュー）
+// ==========================================
+function getLinearDashData_() {
+  try {
+    var results = [];
+    var total   = 0;
+
+    Object.keys(LINEAR_PROJECTS).forEach(function(key) {
+      var proj = LINEAR_PROJECTS[key];
+      if (!proj || !proj.id) return;
+
+      var data = linearQuery_(
+        'query($filter: IssueFilter) { issues(filter: $filter, orderBy: priority, first: 8) { nodes { identifier title priority dueDate state { name type } } } }',
+        { filter: { project: { id: { eq: proj.id } }, state: { type: { nin: ["completed", "cancelled"] } } } }
+      );
+
+      var issues = (data.issues.nodes || []).map(function(i) {
+        return {
+          identifier: i.identifier,
+          title:      i.title,
+          priority:   i.priority || 0,
+          stateType:  i.state ? i.state.type : "backlog",
+          stateName:  i.state ? i.state.name : "Backlog",
+          dueDate:    i.dueDate || null
+        };
+      });
+
+      total += issues.length;
+      results.push({ name: proj.name, key: key, issues: issues });
+    });
+
+    return { projects: results, total: total };
+  } catch (e) {
+    return { projects: [], total: 0, error: e.message };
+  }
 }
 
 // 秒数 → "X時間Y分" フォーマット
