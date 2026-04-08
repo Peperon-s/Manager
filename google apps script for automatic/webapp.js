@@ -279,7 +279,7 @@ function getLinearDashData_() {
       if (!proj || !proj.id) return;
 
       var data = linearQuery_(
-        'query($filter: IssueFilter) { issues(filter: $filter, orderBy: priority, first: 8) { nodes { identifier title priority dueDate state { name type } } } }',
+        'query($filter: IssueFilter) { issues(filter: $filter, first: 50) { nodes { identifier title priority dueDate state { name type } } } }',
         { filter: { project: { id: { eq: proj.id } }, state: { type: { nin: ["completed", "cancelled"] } } } }
       );
 
@@ -293,6 +293,17 @@ function getLinearDashData_() {
           dueDate:    i.dueDate || null
         };
       });
+
+      // 優先度昇順（1=Urgent が先）、同優先度なら期限あり→期限なし
+      issues.sort(function(a, b) {
+        var pa = a.priority || 5, pb = b.priority || 5; // 0(なし)は最後
+        if (pa !== pb) return pa - pb;
+        if (a.dueDate && !b.dueDate) return -1;
+        if (!a.dueDate && b.dueDate) return 1;
+        if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+        return 0;
+      });
+      issues = issues.slice(0, 8);
 
       total += issues.length;
       results.push({ name: proj.name, key: key, issues: issues });
