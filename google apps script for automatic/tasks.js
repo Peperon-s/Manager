@@ -31,8 +31,11 @@ function todoistGetProjects() {
     headers: getTodoistHeaders_(),
     muteHttpExceptions: true
   });
-  const projects = safeParseJson_(res.getContentText(), "todoistGetProjects");
-  const data     = Array.isArray(projects) ? projects : [];
+  const body = safeParseJson_(res.getContentText(), "todoistGetProjects");
+  // 配列 or { results: [...] } or { items: [...] } に対応
+  const data = Array.isArray(body) ? body
+    : (body && Array.isArray(body.results) ? body.results
+    : (body && Array.isArray(body.items)   ? body.items : []));
   cache.put("todoist_projects", JSON.stringify(data), 300);
   return data;
 }
@@ -56,16 +59,30 @@ function buildProjectMap_() {
 
 // ==========================================
 // タスク一覧を取得（プロジェクト指定可）
+// Todoist API v1 はページネーション形式 { results: [...], next_cursor: ... } を返す場合がある
 // ==========================================
 function todoistGetTasks_(projectName) {
   var url = "https://api.todoist.com/api/v1/tasks";
+  var params = [];
   if (projectName) {
     var projectId = resolveTodoistProjectId_(projectName);
-    if (projectId) url += "?project_id=" + projectId;
+    if (projectId) params.push("project_id=" + projectId);
   }
-  var res   = UrlFetchApp.fetch(url, { headers: getTodoistHeaders_(), muteHttpExceptions: true });
-  var tasks = safeParseJson_(res.getContentText(), "todoistGetTasks");
-  return Array.isArray(tasks) ? tasks : [];
+  params.push("limit=200"); // 最大件数を明示
+  if (params.length) url += "?" + params.join("&");
+
+  var res  = UrlFetchApp.fetch(url, { headers: getTodoistHeaders_(), muteHttpExceptions: true });
+  var body = safeParseJson_(res.getContentText(), "todoistGetTasks");
+
+  // 旧形式: 配列がそのまま返ってくる場合
+  if (Array.isArray(body)) return body;
+  // 新形式: { results: [...], next_cursor: ... }
+  if (body && Array.isArray(body.results)) return body.results;
+  // items キーの場合
+  if (body && Array.isArray(body.items)) return body.items;
+
+  logToSheet("【todoistGetTasks_ 不明な形式】" + JSON.stringify(body).substring(0, 200));
+  return [];
 }
 
 // ==========================================

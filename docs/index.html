@@ -208,7 +208,14 @@
       font-size: 13px; opacity: 0; transition: opacity .2s;
       color: var(--sub); padding: 2px;
     }
-    .msg-ai .msg-bubble:hover .msg-copy-btn { opacity: 1; }
+    .msg-regen-btn {
+      position: absolute; top: 6px; right: 30px;
+      background: none; border: none; cursor: pointer;
+      font-size: 13px; opacity: 0; transition: opacity .2s;
+      color: var(--sub); padding: 2px;
+    }
+    .msg-ai .msg-bubble:hover .msg-copy-btn,
+    .msg-ai .msg-bubble:hover .msg-regen-btn { opacity: 1; }
     /* タイピングインジケーター */
     .typing-bubble { padding: 12px 18px !important; }
     .typing-dot {
@@ -901,7 +908,7 @@
   // ══════════════════════════════════════
   // CONFIG — GASのWebAppURLに変更してください
   // ══════════════════════════════════════
-  const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwMuZeZ_Inn-2v_AkneAROYjvrsixCO5yxHoXy-tr6bSA231br9cW2e0-Hx2CFTGaMx/exec';
+  const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbze8XVnjfYDyaBKMqB1uZbi27mq0kd3lgoslMLIc5pUSYott1vOAe9P_9c7JYSxRxoY/exec';
 
   // ══════════════════════════════════════
   // GAS API ヘルパー
@@ -1413,6 +1420,10 @@
   function renderTasks(data) {
     var el = document.getElementById('tasks-body');
     document.getElementById('tasks-badge').textContent = (data.total || 0) + '件';
+    if (data.error) {
+      el.innerHTML = '<div class="error-msg">⚠ Todoist取得エラー: ' + esc(data.error) + '</div>';
+      return;
+    }
     var all = [].concat(
       (data.byPriority && data.byPriority.p1 || []).map(function(t){ return {t,p:'p1'}; }),
       (data.byPriority && data.byPriority.p2 || []).map(function(t){ return {t,p:'p2'}; }),
@@ -1482,6 +1493,20 @@
       } catch(e) {
         bubble.innerHTML = esc(text).replace(/\n/g, '<br>');
       }
+      // 再生成ボタン
+      var regenBtn = document.createElement('button');
+      regenBtn.className   = 'msg-regen-btn';
+      regenBtn.title       = '再生成';
+      regenBtn.textContent = '↺';
+      regenBtn.onclick = (function(r) {
+        return function() {
+          if (r.parentNode) r.parentNode.removeChild(r);
+          // 直前のuser+ai 2件をhistoryから除去して再送
+          chatHistoryContext = chatHistoryContext.slice(0, Math.max(0, chatHistoryContext.length - 2));
+          regenChatMessage();
+        };
+      })(row);
+      bubble.appendChild(regenBtn);
       // コピーボタン
       var copyBtn = document.createElement('button');
       copyBtn.className   = 'msg-copy-btn';
@@ -1505,8 +1530,9 @@
     hist.scrollTop = hist.scrollHeight;
   }
 
-  // 画像添付
-  var _attachedImage = null; // { base64, mimeType, dataUrl }
+  // 画像添付 / 再生成用の最終ペイロード
+  var _attachedImage   = null; // { base64, mimeType, dataUrl }
+  var _lastUserPayload = null; // 再生成ボタン用：最後に送信したメッセージ情報
 
   function onImageSelected(input) {
     var file = input.files[0];
@@ -1550,11 +1576,49 @@
       payload.imageBase64   = _attachedImage.base64;
       payload.imageMimeType = _attachedImage.mimeType;
     }
+    // 再生成用に保存（token は再送時に上書き）
+    _lastUserPayload = { message: payload.message };
+    if (_attachedImage) {
+      _lastUserPayload.imageBase64   = _attachedImage.base64;
+      _lastUserPayload.imageMimeType = _attachedImage.mimeType;
+    }
 
     inputEl.value = ''; inputEl.style.height = 'auto'; inputEl.disabled = true; btn.disabled = true;
     clearImageAttachment();
 
     // タイピングインジケーター表示
+    var typing = document.getElementById('typing-indicator');
+    typing.style.display = 'flex';
+    document.getElementById('chat-history').scrollTop = document.getElementById('chat-history').scrollHeight;
+
+    gasApi('processChatMessage', payload)
+      .then(function(res) {
+        typing.style.display = 'none';
+        inputEl.disabled = false; btn.disabled = false; inputEl.focus();
+        if (res.error) { appendMessage('ai', '⚠ エラー: ' + res.error); return; }
+        appendMessage('ai', res.message || '完了しました。');
+        if (res.newHistory)    chatHistoryContext = res.newHistory;
+        if (res.shouldRefresh) loadDashboard();
+      })
+      .catch(function(e) {
+        typing.style.display = 'none';
+        inputEl.disabled = false; btn.disabled = false;
+        appendMessage('ai', '⚠ 通信エラー: ' + e.message);
+      });
+  }
+
+  // 再生成：最後の AI 返答をやり直す
+  function regenChatMessage() {
+    if (!_lastUserPayload) return;
+    var inputEl = document.getElementById('chat-input');
+    var btn     = document.getElementById('chat-send-btn');
+    inputEl.disabled = true; btn.disabled = true;
+
+    var payload = Object.assign({}, _lastUserPayload, {
+      history: chatHistoryContext,
+      token:   authToken
+    });
+
     var typing = document.getElementById('typing-indicator');
     typing.style.display = 'flex';
     document.getElementById('chat-history').scrollTop = document.getElementById('chat-history').scrollHeight;
