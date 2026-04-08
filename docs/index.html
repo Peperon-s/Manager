@@ -1432,6 +1432,22 @@
     );
     if (!all.length) { el.innerHTML = '<div class="tasks-empty">✨ タスクはありません</div>'; return; }
     var today = new Date().toISOString().split('T')[0];
+    // 並び順:
+    //   カテゴリ: 期限切れ → 期限あり → 期限なし
+    //   期限切れ内: 優先度(p1優先) → 日付昇順(古い順)
+    //   期限あり内: 日付昇順(近い順) → 優先度(p1優先)
+    //   期限なし内: 優先度(p1優先)
+    var pRank = { p1:1, p2:2, p3:3, p4:4 };
+    all.sort(function(a, b) {
+      var da = a.t.due || null, db = b.t.due || null;
+      var pa = pRank[a.p] || 4,  pb = pRank[b.p] || 4;
+      var ca = da ? (da < today ? 0 : 1) : 2;  // 0=期限切れ 1=期限あり 2=期限なし
+      var cb = db ? (db < today ? 0 : 1) : 2;
+      if (ca !== cb) return ca - cb;            // カテゴリ優先
+      if (ca === 0) return pa !== pb ? pa - pb : da.localeCompare(db); // 切れ: 優先度→日付
+      if (ca === 1) { var d = da.localeCompare(db); return d !== 0 ? d : pa - pb; } // あり: 日付→優先度
+      return pa - pb;                           // なし: 優先度のみ
+    });
     var html  = '';
     all.slice(0,10).forEach(function(item) {
       var overdue = item.t.due && item.t.due < today;
