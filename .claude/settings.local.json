@@ -18,7 +18,9 @@
       "Bash(powershell -NoProfile -Command \"Select-String -Path ''C:\\\\Users\\\\iwama\\\\Documents\\\\【重要】開発\\\\google apps script for automatic\\\\google apps script for automatic\\\\*.js'' -Pattern ''gemini|GEMINI|generate'' | Select-Object -First 20 | ForEach-Object { $_Filename + '':'' + $_LineNumber + '': '' + $_Line.Trim\\(\\) }\")",
       "WebSearch",
       "WebFetch(domain:pypi.org)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.cloud.google.com)",
+      "Bash(grep -v \"//\")"
     ]
   }
 }

@@ -530,6 +530,20 @@
       .linear-projects { flex-direction:column; gap:16px; }
     }
 
+    /* ─── NotebookLM ─── */
+    .nlm-list { display:flex; flex-wrap:wrap; gap:10px; }
+    .nlm-item {
+      flex: 1 1 180px; min-width:0;
+      background: var(--bg-hover); border-radius: 10px;
+      padding: 10px 12px; text-decoration: none;
+      color: var(--text); transition: background .15s;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .nlm-item:hover { background: var(--border); }
+    .nlm-item-icon  { font-size: 18px; flex-shrink: 0; }
+    .nlm-item-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .nlm-empty      { color: var(--sub); font-size: 13px; }
+
     /* ─── Progress ─── */
     .progress-item { margin-bottom: 16px; }
     .progress-item:last-child { margin-bottom: 0; }
@@ -866,6 +880,17 @@
             <span class="card-badge" id="linear-badge">-</span>
           </div>
           <div class="card-body" id="linear-body">
+            <div class="loading"><div class="spinner"></div>読み込み中...</div>
+          </div>
+        </div>
+
+        <div class="card card-wide">
+          <div class="card-header">
+            <span class="card-icon">📓</span>
+            <span class="card-title">NotebookLM</span>
+            <span class="card-badge" id="nlm-badge">-</span>
+          </div>
+          <div class="card-body" id="nlm-body">
             <div class="loading"><div class="spinner"></div>読み込み中...</div>
           </div>
         </div>
@@ -1380,20 +1405,21 @@
   // DASHBOARD
   // ══════════════════════════════════════
   function loadDashboard() {
-    ['toggl-body','calendar-body','tasks-body','progress-body','linear-body'].forEach(function(id) {
+    ['toggl-body','calendar-body','tasks-body','progress-body','linear-body','nlm-body'].forEach(function(id) {
       document.getElementById(id).innerHTML =
         '<div class="loading"><div class="spinner"></div>読み込み中...</div>';
     });
     gasApi('getDashboardData')
       .then(function(data) {
-        renderToggl(data.toggl    || {});
+        renderToggl(data.toggl       || {});
         renderCalendar(data.calendar || {});
-        renderTasks(data.tasks    || {});
+        renderTasks(data.tasks       || {});
         renderProgress(data.progress || []);
-        renderLinear(data.linear  || {});
+        renderLinear(data.linear     || {});
+        renderNotebookLM(data.notebooklm || {});
       })
       .catch(function(err) {
-        ['toggl-body','calendar-body','tasks-body','progress-body','linear-body'].forEach(function(id) {
+        ['toggl-body','calendar-body','tasks-body','progress-body','linear-body','nlm-body'].forEach(function(id) {
           document.getElementById(id).innerHTML = '<div class="error-msg">⚠ ' + esc(err.message) + '</div>';
         });
       });
@@ -1563,6 +1589,30 @@
               + '</div></div>';
       });
       html += '</div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  // ── NotebookLM ────────────────────────────
+  function renderNotebookLM(data) {
+    var el = document.getElementById('nlm-body');
+    document.getElementById('nlm-badge').textContent = (data.total || 0) + '件';
+    if (data.error) {
+      el.innerHTML = '<div class="error-msg">⚠ NotebookLM取得エラー: ' + esc(data.error) + '</div>';
+      return;
+    }
+    if (!data.notebooks || !data.notebooks.length) {
+      el.innerHTML = '<div class="nlm-empty">📓 ノートブックはまだありません。チャットで「ノートブックを作って」と話しかけてください。</div>';
+      return;
+    }
+    var html = '<div class="nlm-list">';
+    data.notebooks.forEach(function(nb) {
+      var url = 'https://notebooklm.google.com/notebook/' + esc(nb.id);
+      html += '<a class="nlm-item" href="' + url + '" target="_blank" rel="noopener">'
+            + '<span class="nlm-item-icon">📓</span>'
+            + '<span class="nlm-item-title">' + esc(nb.title) + '</span>'
+            + '</a>';
     });
     html += '</div>';
     el.innerHTML = html;
