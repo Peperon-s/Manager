@@ -901,7 +901,7 @@
   // ══════════════════════════════════════
   // CONFIG — GASのWebAppURLに変更してください
   // ══════════════════════════════════════
-  const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbw-RCvIc-gpOHYu5XyYHW6Vu2C6uZpwiGB37b-PxrfM2GCIm8wQvMQgsgXF0wylXA36/exec';
+  const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbwMuZeZ_Inn-2v_AkneAROYjvrsixCO5yxHoXy-tr6bSA231br9cW2e0-Hx2CFTGaMx/exec';
 
   // ══════════════════════════════════════
   // GAS API ヘルパー
@@ -1459,9 +1459,9 @@
   // ══════════════════════════════════════
   // CHAT
   // ══════════════════════════════════════
-  // marked.js 設定
+  // marked.js 設定（v9以降は use() を使用）
   if (typeof marked !== 'undefined') {
-    marked.setOptions({ breaks: true, gfm: true });
+    marked.use({ breaks: true, gfm: true });
   }
 
   function appendMessage(role, text, rawHtml) {

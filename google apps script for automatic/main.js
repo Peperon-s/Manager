@@ -73,10 +73,7 @@ function handleWebChatMessage_(userMessage, history, userEmail, imageBase64, ima
   while (true) {
     const result = geminiGenerate_({
       contents: workingContents,
-      tools: [
-        { function_declarations: fnDeclarations },
-        { google_search: {} }          // Google検索グラウンディング
-      ],
+      tools: [{ function_declarations: fnDeclarations }],
       system_instruction: { parts: [{ text: systemPrompt }] }
     });
 

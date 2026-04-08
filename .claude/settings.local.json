@@ -15,7 +15,10 @@
       "Bash(powershell -Command \"Get-ChildItem ''C:\\\\Users\\\\iwama\\\\Documents\\\\【私用】プライベート\\\\win98_icons\\\\windows98-icons\\\\png\\\\briefcase*.png'' | Select-Object Name, Length\")",
       "Bash(powershell -Command \":*)",
       "Bash(powershell -NoProfile -Command \"Copy-Item ''C:\\\\Users\\\\iwama\\\\Documents\\\\【私用】プライベート\\\\win98_icons\\\\windows98-icons\\\\png\\\\briefcase-4.png'' ''C:\\\\Users\\\\iwama\\\\Documents\\\\【重要】開発\\\\google apps script for automatic\\\\docs\\\\favicon.png''; Write-Output ''done''\")",
-      "Bash(powershell -NoProfile -Command \"Select-String -Path ''C:\\\\Users\\\\iwama\\\\Documents\\\\【重要】開発\\\\google apps script for automatic\\\\google apps script for automatic\\\\*.js'' -Pattern ''gemini|GEMINI|generate'' | Select-Object -First 20 | ForEach-Object { $_Filename + '':'' + $_LineNumber + '': '' + $_Line.Trim\\(\\) }\")"
+      "Bash(powershell -NoProfile -Command \"Select-String -Path ''C:\\\\Users\\\\iwama\\\\Documents\\\\【重要】開発\\\\google apps script for automatic\\\\google apps script for automatic\\\\*.js'' -Pattern ''gemini|GEMINI|generate'' | Select-Object -First 20 | ForEach-Object { $_Filename + '':'' + $_LineNumber + '': '' + $_Line.Trim\\(\\) }\")",
+      "WebSearch",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }
