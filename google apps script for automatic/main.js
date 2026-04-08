@@ -3,17 +3,20 @@
 // ==========================================
 
 function handleWebChatMessage_(userMessage, history, userEmail, imageBase64, imageMimeType) {
-  // 1. 会話履歴をGemini用フォーマットに変換
+  // 1. 会話履歴をGemini用フォーマットに変換（コンテキスト管理: 直近20件に絞る）
+  const MAX_HISTORY_SEND = 20;
+  const trimmedHistory = (history && history.length > MAX_HISTORY_SEND)
+    ? history.slice(history.length - MAX_HISTORY_SEND)
+    : (history || []);
+
   const contents = [];
-  if (history && Array.isArray(history)) {
-    history.forEach(function(msg) {
-      if (msg.role === "user") {
-        contents.push({ role: "user", parts: [{ text: msg.text || "" }] });
-      } else if (msg.role === "ai" || msg.role === "model") {
-        contents.push({ role: "model", parts: [{ text: msg.text || "" }] });
-      }
-    });
-  }
+  trimmedHistory.forEach(function(msg) {
+    if (msg.role === "user") {
+      contents.push({ role: "user", parts: [{ text: msg.text || "" }] });
+    } else if (msg.role === "ai" || msg.role === "model") {
+      contents.push({ role: "model", parts: [{ text: msg.text || "" }] });
+    }
+  });
 
   // 今の送信内容を追加（画像があればinlineDataを含める）
   const userParts = [];
@@ -60,52 +63,73 @@ function handleWebChatMessage_(userMessage, history, userEmail, imageBase64, ima
   // 3. ツール一覧の定義 (全21ツールを統合)
   const fnDeclarations = getUniversalToolDeclarations_();
 
-  const payload = {
-    contents: contents,
-    tools: [{ function_declarations: fnDeclarations }],
-    system_instruction: { parts: [{ text: systemPrompt }] }
-  };
-
-  // 4. API呼び出しとハンドリング
-  const result = geminiGenerate_(payload);
-  if (result.error) return { error: "APIエラー: " + result.error.message };
-  if (!result.candidates || !result.candidates.length) return { error: "有効な回答がありませんでした" };
-
-  const part = result.candidates[0].content.parts[0];
-  let finalMessage = "";
+  // 4. エージェントループ（最大8ツール呼び出し → テキスト応答まで継続）
+  const MAX_TOOL_CALLS = 8;
+  let toolCallCount = 0;
+  let finalMessage  = "";
   let shouldRefresh = false;
+  const workingContents = contents.slice(); // 作業用コピー
 
-  if (part.functionCall) {
-    const call = part.functionCall;
-    call._userEmail = userEmail || null; // メモリツール用にユーザー情報を付与
-    logToSheet("関数呼び出し: " + call.name + " " + JSON.stringify(call.args));
-    shouldRefresh = true; // ツール呼び出し時はダッシュボード更新フラグを立てる
+  while (true) {
+    const result = geminiGenerate_({
+      contents: workingContents,
+      tools: [
+        { function_declarations: fnDeclarations },
+        { google_search: {} }          // Google検索グラウンディング
+      ],
+      system_instruction: { parts: [{ text: systemPrompt }] }
+    });
 
+    if (result.error) return { error: "APIエラー: " + result.error.message };
+    if (!result.candidates || !result.candidates.length) return { error: "有効な回答がありませんでした" };
+
+    const responseParts = result.candidates[0].content
+      ? result.candidates[0].content.parts
+      : [];
+
+    // Function call があるか確認
+    const funcPart = responseParts.find(function(p) { return p.functionCall; });
+
+    if (!funcPart || toolCallCount >= MAX_TOOL_CALLS) {
+      // テキスト応答 → ループ終了
+      const textPart = responseParts.find(function(p) { return p.text; });
+      finalMessage = textPart
+        ? textPart.text
+        : (toolCallCount >= MAX_TOOL_CALLS ? "処理の上限に達しました。再度お試しください。" : "処理が完了しました。");
+      break;
+    }
+
+    // ツール実行
+    const call = funcPart.functionCall;
+    call._userEmail = userEmail || null;
+    logToSheet("ツール呼び出し(" + (toolCallCount + 1) + "): " + call.name + " " + JSON.stringify(call.args));
+    shouldRefresh = true;
+
+    let toolResult;
     try {
-      finalMessage = executeFunctionCall_(call);
+      toolResult = String(executeFunctionCall_(call));
     } catch (e) {
-      finalMessage = "⚠ ツール実行エラー: " + e.message;
+      toolResult    = "ツール実行エラー: " + e.message;
       shouldRefresh = false;
     }
-  } else {
-    finalMessage = part.text;
+
+    // モデル応答 + ツール結果を会話に追加して次のループへ
+    workingContents.push({ role: "model", parts: responseParts });
+    workingContents.push({
+      role: "user",
+      parts: [{ functionResponse: { name: call.name, response: { result: toolResult } } }]
+    });
+
+    toolCallCount++;
   }
 
-  // 新しい履歴配列を作成
+  // 5. 履歴を更新（最大30件保持）
   const newHistory = (history || []).slice();
   newHistory.push({ role: "user", text: userMessage });
-  newHistory.push({ role: "ai", text: finalMessage });
-  // 保持する履歴が長すぎるとトークンを消費するので、直近の10往復(20件)程度に制限
-  if (newHistory.length > 20) {
-    newHistory.splice(0, newHistory.length - 20);
-  }
+  newHistory.push({ role: "ai",   text: finalMessage });
+  if (newHistory.length > 30) newHistory.splice(0, newHistory.length - 30);
 
-  // 呼び出し元へ戻す
-  return {
-    message: finalMessage,
-    shouldRefresh: shouldRefresh,
-    newHistory: newHistory
-  };
+  return { message: finalMessage, shouldRefresh: shouldRefresh, newHistory: newHistory };
 }
 
 // ツール呼び出しのルーティング
